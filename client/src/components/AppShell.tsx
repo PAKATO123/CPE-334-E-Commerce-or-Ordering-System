@@ -24,7 +24,7 @@ export const AppShell: React.FC = () => {
         <div className="tt-header-inner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px", maxWidth: "1200px", margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
             <Link to="/" className="tt-brand" style={{ fontWeight: 700, fontSize: "1.25rem", textDecoration: "none", color: "inherit" }}>
-              🛒 E-Commerce System
+              ⛺ TechTent
             </Link>
 
             <nav className="tt-nav" style={{ display: "flex", gap: "16px" }}>
