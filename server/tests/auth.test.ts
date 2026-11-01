@@ -31,6 +31,19 @@ describe("Feature 1: User Authentication & Role-Based Session Control", () => {
 
   afterAll(async () => {
     try {
+      // Restore baseline user states so tests leave the DB pristine for manual testing
+      await prisma.user.updateMany({
+        where: { email: { in: ["customer1@example.com", "customer2@example.com"] } },
+        data: { passwordHash: DEFAULT_HASH, mustChangePassword: false, isActive: true },
+      });
+      await prisma.user.updateMany({
+        where: { email: "customer3@example.com" },
+        data: { passwordHash: DEFAULT_HASH, mustChangePassword: true, isActive: true },
+      });
+      await prisma.user.updateMany({
+        where: { email: "deactivated@example.com" },
+        data: { passwordHash: DEFAULT_HASH, mustChangePassword: false, isActive: false },
+      });
       await prisma.$disconnect();
     } catch {}
   });
@@ -233,3 +246,4 @@ describe("Feature 1: User Authentication & Role-Based Session Control", () => {
     expect(newLoginRes.body.user.mustChangePassword).toBe(false);
   });
 });
+

@@ -23,16 +23,24 @@ export const AppShell: React.FC = () => {
       <header className="tt-header">
         <div className="tt-header-inner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px", maxWidth: "1200px", margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
-            <Link to="/" className="tt-brand" style={{ fontWeight: 700, fontSize: "1.25rem", textDecoration: "none", color: "inherit" }}>
+            <Link to="/" className="tt-brand" style={{ fontWeight: 700, fontSize: "1.25rem", textDecoration: "none", color: "#FFFFFF" }}>
               ⛺ TechTent
             </Link>
 
-            <nav className="tt-nav" style={{ display: "flex", gap: "16px" }}>
+            <nav className="tt-nav" style={{ display: "flex", gap: "12px" }}>
               <NavLink
                 to="/"
                 end
                 className={({ isActive }) => `tt-nav-link ${isActive ? "active" : ""}`}
-                style={{ textDecoration: "none", color: "inherit", padding: "6px 12px", borderRadius: "4px" }}
+                style={({ isActive }) => ({
+                  textDecoration: "none",
+                  color: "#FFFFFF",
+                  padding: "6px 12px",
+                  borderRadius: "4px",
+                  backgroundColor: isActive ? "rgba(255, 255, 255, 0.25)" : "transparent",
+                  fontWeight: isActive ? 600 : 400,
+                  fontSize: "14px",
+                })}
               >
                 Catalog
               </NavLink>
@@ -41,7 +49,15 @@ export const AppShell: React.FC = () => {
                 <NavLink
                   to="/orders"
                   className={({ isActive }) => `tt-nav-link ${isActive ? "active" : ""}`}
-                  style={{ textDecoration: "none", color: "inherit", padding: "6px 12px", borderRadius: "4px" }}
+                  style={({ isActive }) => ({
+                    textDecoration: "none",
+                    color: "#FFFFFF",
+                    padding: "6px 12px",
+                    borderRadius: "4px",
+                    backgroundColor: isActive ? "rgba(255, 255, 255, 0.25)" : "transparent",
+                    fontWeight: isActive ? 600 : 400,
+                    fontSize: "14px",
+                  })}
                 >
                   My Orders
                 </NavLink>
@@ -51,7 +67,15 @@ export const AppShell: React.FC = () => {
                 <NavLink
                   to="/operator/orders"
                   className={({ isActive }) => `tt-nav-link ${isActive ? "active" : ""}`}
-                  style={{ textDecoration: "none", color: "inherit", padding: "6px 12px", borderRadius: "4px" }}
+                  style={({ isActive }) => ({
+                    textDecoration: "none",
+                    color: "#FFFFFF",
+                    padding: "6px 12px",
+                    borderRadius: "4px",
+                    backgroundColor: isActive ? "rgba(255, 255, 255, 0.25)" : "transparent",
+                    fontWeight: isActive ? 600 : 400,
+                    fontSize: "14px",
+                  })}
                 >
                   Operator Queue
                 </NavLink>
@@ -61,15 +85,15 @@ export const AppShell: React.FC = () => {
 
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             {user ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span style={{ fontSize: "14px" }}>
-                  <strong>{user.name}</strong> <span style={{ opacity: 0.7 }}>({user.role})</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                <span style={{ fontSize: "14px", color: "#FFFFFF" }}>
+                  <strong>{user.name}</strong> <span style={{ opacity: 0.85, fontSize: "12px" }}>({user.role})</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => logout()}
-                  className="tt-btn tt-btn-outline"
-                  style={{ padding: "6px 12px", cursor: "pointer" }}
+                  className="tt-btn tt-header-btn-danger"
+                  style={{ padding: "6px 14px", height: "36px", cursor: "pointer", fontSize: "13px" }}
                 >
                   Sign Out
                 </button>
@@ -77,8 +101,8 @@ export const AppShell: React.FC = () => {
             ) : (
               <Link
                 to="/login"
-                className="tt-btn tt-btn-primary"
-                style={{ padding: "6px 14px", textDecoration: "none", borderRadius: "4px" }}
+                className="tt-btn tt-header-btn"
+                style={{ padding: "6px 16px", height: "36px", textDecoration: "none", fontSize: "13px" }}
               >
                 Sign In
               </Link>
