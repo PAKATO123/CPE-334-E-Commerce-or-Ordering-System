@@ -92,7 +92,7 @@ export const AppShell: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => logout()}
-                  className="tt-btn tt-header-btn-danger"
+                  className="tt-btn tt-header-btn-nav"
                   style={{ padding: "6px 14px", height: "36px", cursor: "pointer", fontSize: "13px" }}
                 >
                   Sign Out
@@ -101,7 +101,7 @@ export const AppShell: React.FC = () => {
             ) : (
               <Link
                 to="/login"
-                className="tt-btn tt-header-btn"
+                className="tt-btn tt-header-btn-nav"
                 style={{ padding: "6px 16px", height: "36px", textDecoration: "none", fontSize: "13px" }}
               >
                 Sign In

@@ -382,32 +382,54 @@ a:hover {
   color: #FFFFFF;
 }
 
-/* Header Navbar Distinctive Buttons */
-.tt-header-btn {
-  background-color: #FFFFFF !important;
-  color: var(--color-primary-green) !important;
-  border: 1px solid #FFFFFF !important;
+/* Header Navbar Buttons (consistent with left-side nav, bold text, solid translucent background) */
+.tt-header-btn-nav {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
   font-weight: 700 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  border-radius: 4px !important;
+  transition: all 0.15s ease;
+}
+
+.tt-header-btn-nav:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #FFFFFF !important;
+}
+
+.tt-header-btn-nav:active {
+  background-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.tt-header-btn {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  font-weight: 700 !important;
+  border-radius: 4px !important;
+  transition: all 0.15s ease;
 }
 
 .tt-header-btn:hover:not(:disabled) {
-  background-color: var(--color-pale-green) !important;
-  color: var(--color-secondary-green) !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #FFFFFF !important;
 }
 
 .tt-header-btn-danger {
-  background-color: #FFFFFF !important;
-  color: #DC2626 !important;
-  border: 1px solid #FECACA !important;
+  background-color: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
   font-weight: 700 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  border-radius: 4px !important;
+  transition: all 0.15s ease;
 }
 
 .tt-header-btn-danger:hover:not(:disabled) {
-  background-color: #FEE2E2 !important;
-  color: #991B1B !important;
-  border-color: #F87171 !important;
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #FFFFFF !important;
 }
 
 /* Messages & States */
