@@ -21,6 +21,22 @@ const USERS = [
     mustChangePassword: false,
     passwordHash: DEFAULT_PASSWORD_HASH,
   },
+  {
+    email: "customer3@example.com",
+    name: "David NewCustomer",
+    role: "CUSTOMER" as const,
+    isActive: true,
+    mustChangePassword: true,
+    passwordHash: DEFAULT_PASSWORD_HASH,
+  },
+  {
+    email: "deactivated@example.com",
+    name: "Eve Deactivated",
+    role: "CUSTOMER" as const,
+    isActive: false,
+    mustChangePassword: false,
+    passwordHash: DEFAULT_PASSWORD_HASH,
+  },
   // Operators
   {
     email: "operator1@example.com",

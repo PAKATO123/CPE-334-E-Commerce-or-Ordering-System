@@ -195,6 +195,13 @@ app.post("/api/auth/change-password", requireAuth, async (req: Request, res: Res
 });
 
 // ---------------------------------------------------------------------------
+// Operator Orders Queue (F-05 skeleton for testing RBAC / requireRole)
+// ---------------------------------------------------------------------------
+app.get("/api/operator/orders", requireAuth, requireRole("OPERATOR", "ADMIN"), (_req: Request, res: Response) => {
+  return res.status(200).json({ data: [] });
+});
+
+// ---------------------------------------------------------------------------
 // 404 Handler
 // ---------------------------------------------------------------------------
 app.use((_req: Request, res: Response) => {
