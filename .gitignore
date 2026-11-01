@@ -1,0 +1,52 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Lab Sheets (For context this is used by ai to double check the docs incase too much info was lost in my extraction, all the initial docs weren't created with tihs as the context)
+docs/lab-02/Lab_02_labsheet.md
+docs/lab-03/Lab_3_sheet.md
+docs/lab-03/submission_evidence_guide.md
+
+# Backups and temporary files
+docs/lab-02BackUp.zip
+docs/lab-01/note
+test-results/
+*.timestamp-*.mjs
+
+
+
+# Old project reference files
+_reference_old/
+
+# Course assignment sheets and brief docs
+LabSheetDocs/
