@@ -354,15 +354,21 @@ app.post(
           throw err;
         }
 
-        // Validate stock availability for each product
+        // Validate stock availability for each product (supports simulation test SKU)
         for (const product of products) {
           const requestedQty = itemMap.get(product.id)!;
-          if (product.stockQuantity < requestedQty) {
+          const isSimulatedFail = product.sku === "SIM-ATOM-FAIL";
+
+          if (product.stockQuantity < requestedQty || isSimulatedFail) {
             const err: any = new Error(
-              `Insufficient stock for '${product.name}'. Available: ${product.stockQuantity}, Requested: ${requestedQty}`
+              isSimulatedFail
+                ? `Selected item '${product.name}' is out of stock. Please remove it from your cart to proceed.`
+                : `Insufficient stock for '${product.name}'. Available: ${product.stockQuantity}, Requested: ${requestedQty}`
             );
             err.statusCode = 409;
             err.code = "INSUFFICIENT_STOCK";
+            err.failedProductId = product.id;
+            err.failedSku = product.sku;
             throw err;
           }
         }
@@ -447,7 +453,12 @@ app.post(
     } catch (error: any) {
       if (error.statusCode) {
         return res.status(error.statusCode).json({
-          error: { code: error.code || "ORDER_ERROR", message: error.message },
+          error: {
+            code: error.code || "ORDER_ERROR",
+            message: error.message,
+            productId: error.failedProductId,
+            sku: error.failedSku,
+          },
         });
       }
       console.error("Order creation transaction error:", error);

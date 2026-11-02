@@ -249,5 +249,46 @@ describe("Feature 3: Cart Assembly & Order Placement (F-03)", () => {
 
     expect(handleSuccess).not.toHaveBeenCalled();
   });
+
+  it("highlights out-of-stock / simulation item in red with removal prompt and allows removal to restore order button", async () => {
+    const error: any = new Error("Selected item 'Flagship Pro Smartphone 256GB' is out of stock. Please remove to proceed.");
+    error.status = 409;
+    error.code = "INSUFFICIENT_STOCK";
+    error.productId = 1;
+    error.sku = "PHON-PRO-256";
+    vi.mocked(api.createOrderApi).mockRejectedValueOnce(error);
+
+    const handleSuccess = vi.fn();
+
+    render(
+      <AuthProvider>
+        <CartProvider>
+          <MemoryRouter>
+            <CartTestHarness onOrderSuccess={handleSuccess} />
+          </MemoryRouter>
+        </CartProvider>
+      </AuthProvider>
+    );
+
+    fireEvent.click(screen.getByTestId("add-phone-btn"));
+    fireEvent.click(screen.getByTestId("open-cart-btn"));
+
+    fireEvent.click(screen.getByTestId("place-order-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cart-error-banner")).toBeInTheDocument();
+      expect(screen.getByTestId("cart-item-error-PHON-PRO-256")).toHaveTextContent(/Selected item is out of stock/i);
+    });
+
+    // Check that button shows prompt to remove out-of-stock item
+    expect(screen.getByTestId("place-order-button")).toHaveTextContent(/Remove Out of Stock Item/i);
+    expect(screen.getByTestId("place-order-button")).toBeDisabled();
+
+    // Click the dedicated Remove button inside the red highlight
+    fireEvent.click(screen.getByTestId("remove-failed-item-PHON-PRO-256"));
+
+    // Item should be removed from cart
+    expect(screen.queryByTestId("cart-item-PHON-PRO-256")).not.toBeInTheDocument();
+  });
 });
 

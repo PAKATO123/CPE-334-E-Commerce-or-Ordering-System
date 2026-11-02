@@ -152,6 +152,8 @@ export async function createOrderApi(payload: CreateOrderPayload): Promise<{ dat
     const error: any = new Error(json.error?.message || "Failed to submit order.");
     error.status = res.status;
     error.code = json.error?.code;
+    error.productId = json.error?.productId;
+    error.sku = json.error?.sku;
     throw error;
   }
   return json;

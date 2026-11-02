@@ -53,6 +53,19 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
         where: { sku: "PHON-FLIP-LTD" },
         data: { stockQuantity: 0, price: 999.00 },
       });
+      await prisma.product.upsert({
+        where: { sku: "SIM-ATOM-FAIL" },
+        update: { stockQuantity: 1, price: 99.00, isActive: true },
+        create: {
+          sku: "SIM-ATOM-FAIL",
+          name: "[Simulation] Atomicity Stress Test Device",
+          category: "Smartphones",
+          description: "Special simulation device to test atomicity",
+          price: 99.00,
+          stockQuantity: 1,
+          isActive: true,
+        },
+      });
     } catch {}
   });
 
@@ -85,6 +98,10 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
       await prisma.product.update({
         where: { sku: "PHON-FLIP-LTD" },
         data: { stockQuantity: 0 },
+      });
+      await prisma.product.updateMany({
+        where: { sku: "SIM-ATOM-FAIL" },
+        data: { stockQuantity: 1 },
       });
       await prisma.$disconnect();
     } catch {}
@@ -239,6 +256,36 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
     // Atomicity check: Charger stock must NOT be decremented
     const afterCharger = await prisma.product.findUniqueOrThrow({ where: { sku: "CHG-GAN-65W" } });
     expect(afterCharger.stockQuantity).toBe(initialChargerStock);
+  });
+
+  it("TEST-SIM-ATOM: rejects order containing simulation product (SIM-ATOM-FAIL), rolls back transaction atomically without decrementing valid products", async () => {
+    const customer = await loginAsCustomer();
+    const charger = await prisma.product.findUniqueOrThrow({ where: { sku: "CHG-GAN-65W" } });
+    const simProduct = await prisma.product.findUniqueOrThrow({ where: { sku: "SIM-ATOM-FAIL" } });
+
+    const initialChargerStock = charger.stockQuantity; // 25
+    const initialSimStock = simProduct.stockQuantity; // 1
+
+    const res = await customer.post("/api/orders").send({
+      items: [
+        { productId: charger.id, quantity: 2 },
+        { productId: simProduct.id, quantity: 1 },
+      ],
+    });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("INSUFFICIENT_STOCK");
+    expect(res.body.error.productId).toBe(simProduct.id);
+    expect(res.body.error.sku).toBe("SIM-ATOM-FAIL");
+    expect(res.body.error.message).toContain("out of stock");
+
+    // Atomicity Verification: Charger stock MUST NOT be decremented!
+    const afterCharger = await prisma.product.findUniqueOrThrow({ where: { sku: "CHG-GAN-65W" } });
+    expect(afterCharger.stockQuantity).toBe(initialChargerStock);
+
+    // Simulation product stock remains untouched
+    const afterSim = await prisma.product.findUniqueOrThrow({ where: { sku: "SIM-ATOM-FAIL" } });
+    expect(afterSim.stockQuantity).toBe(initialSimStock);
   });
 
   // -------------------------------------------------------------------------

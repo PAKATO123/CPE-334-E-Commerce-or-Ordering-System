@@ -121,6 +121,15 @@ export const PRODUCTS = [
     stockQuantity: 50,
     isActive: false, // Demonstrates Inactive exclusion (AC-CAT-02)
   },
+  {
+    sku: "SIM-ATOM-FAIL",
+    name: "[Simulation] Atomicity Stress Test Device",
+    category: "Smartphones",
+    description: "Special simulation device displaying 1 in stock to simulate race conditions and test atomic transaction rollback upon checkout.",
+    price: 99.00,
+    stockQuantity: 1, // Displays 1 in stock, triggers 409 rollback at checkout
+    isActive: true,
+  },
 ];
 
 export async function main() {
