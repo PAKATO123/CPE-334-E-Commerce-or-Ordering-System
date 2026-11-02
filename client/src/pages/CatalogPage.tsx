@@ -16,7 +16,7 @@ interface ToastNotificationItem {
 
 export const CatalogPage: React.FC = () => {
   const { user } = useAuth();
-  const { addToCart } = useCart();
+  const { addToCart, catalogVersion } = useCart();
   const navigate = useNavigate();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -53,6 +53,17 @@ export const CatalogPage: React.FC = () => {
 
   useEffect(() => {
     fetchCatalog();
+  }, [selectedCategory, catalogVersion]);
+
+  // Sync catalog when user returns to window / tab
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchCatalog();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [selectedCategory]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {

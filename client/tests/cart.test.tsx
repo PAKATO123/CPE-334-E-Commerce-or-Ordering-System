@@ -101,6 +101,10 @@ describe("Feature 3: Cart Assembly & Order Placement (F-03)", () => {
     expect(screen.getByTestId("cart-item-PHON-PRO-256")).toBeInTheDocument();
     expect(screen.getByTestId("cart-item-KB-MECH-RGB")).toBeInTheDocument();
     expect(screen.getByTestId("cart-grand-total")).toHaveTextContent("$1,057.00");
+
+    // Drawer footer disclaimer check: "Final total is calculated authoritatively" removed; inventory reservation notice kept
+    expect(screen.getByText(/\* Inventory is reserved immediately upon placement\./i)).toBeInTheDocument();
+    expect(screen.queryByText(/Final total is calculated authoritatively by the server/i)).not.toBeInTheDocument();
   });
 
   it("steppers update quantities and prevent exceeding stock limit", async () => {
@@ -246,3 +250,4 @@ describe("Feature 3: Cart Assembly & Order Placement (F-03)", () => {
     expect(handleSuccess).not.toHaveBeenCalled();
   });
 });
+

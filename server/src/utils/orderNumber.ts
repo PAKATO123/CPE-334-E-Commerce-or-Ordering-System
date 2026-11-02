@@ -31,3 +31,4 @@ export async function generateOrderNumber(prisma: PrismaClient | any): Promise<s
   const nextSeq = String(maxSeq + 1).padStart(4, "0");
   return `${prefix}${nextSeq}`;
 }
+

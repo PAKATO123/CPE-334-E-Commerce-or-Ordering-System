@@ -9,7 +9,17 @@ interface CartDrawerProps {
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderSuccess }) => {
-  const { items, isCartOpen, closeCart, updateQuantity, removeFromCart, clearCart, totalItemCount, totalAmount } = useCart();
+  const {
+    items,
+    isCartOpen,
+    closeCart,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    refreshCatalog,
+    totalItemCount,
+    totalAmount,
+  } = useCart();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -30,6 +40,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderSuccess }) => {
 
       const res = await createOrderApi(payload);
       clearCart();
+      refreshCatalog();
       closeCart();
       onOrderSuccess(res.data);
     } catch (err: any) {
@@ -274,7 +285,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderSuccess }) => {
             </div>
 
             <p style={{ fontSize: "11px", color: "#718096", margin: "0 0 14px 0", lineHeight: 1.4 }}>
-              * Final total is calculated authoritatively by the server. Inventory is reserved immediately upon placement.
+              * Inventory is reserved immediately upon placement.
             </p>
 
             <button
@@ -301,3 +312,4 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderSuccess }) => {
 };
 
 export default CartDrawer;
+

@@ -42,6 +42,10 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
         data: { stockQuantity: 8, price: 549.00 },
       });
       await prisma.product.update({
+        where: { sku: "TV-SMART-55" },
+        data: { stockQuantity: 5, price: 699.00 },
+      });
+      await prisma.product.update({
         where: { sku: "CHG-GAN-65W" },
         data: { stockQuantity: 25, price: 29.00 },
       });
@@ -71,8 +75,16 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
         data: { stockQuantity: 8 },
       });
       await prisma.product.update({
+        where: { sku: "TV-SMART-55" },
+        data: { stockQuantity: 5 },
+      });
+      await prisma.product.update({
         where: { sku: "CHG-GAN-65W" },
         data: { stockQuantity: 25 },
+      });
+      await prisma.product.update({
+        where: { sku: "PHON-FLIP-LTD" },
+        data: { stockQuantity: 0 },
       });
       await prisma.$disconnect();
     } catch {}
@@ -290,3 +302,4 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
     expect(res.body.error.code).toBe("FORBIDDEN");
   });
 });
+

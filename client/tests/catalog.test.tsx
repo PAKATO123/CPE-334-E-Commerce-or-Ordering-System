@@ -7,7 +7,7 @@ import CatalogPage from "../src/pages/CatalogPage";
 import * as api from "../src/api";
 import { Product } from "../src/types/product";
 import { AuthProvider } from "../src/context/AuthContext";
-import { CartProvider } from "../src/context/CartContext";
+import { CartProvider, useCart } from "../src/context/CartContext";
 
 const MOCK_PRODUCTS: Product[] = [
   {
@@ -78,6 +78,50 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
 
     const button = screen.getByRole("button", { name: /Out of Stock/i });
     expect(button).toBeDisabled();
+  });
+
+  it("renders in-cart tracking badge and disables button when in-cart quantity reaches stock quantity", () => {
+    const limitedProduct: Product = {
+      id: 99,
+      sku: "TEST-LTD-1",
+      name: "Limited Stock Test Item",
+      category: "Keyboards",
+      description: "Only 1 in stock",
+      price: "49.00",
+      stockQuantity: 1,
+      isActive: true,
+    };
+
+    const Harness = () => {
+      const { addToCart } = useCart();
+      return (
+        <div>
+          <button onClick={() => addToCart(limitedProduct, 1)} data-testid="add-btn-test">
+            Add 1
+          </button>
+          <ProductCard product={limitedProduct} />
+        </div>
+      );
+    };
+
+    render(
+      <CartProvider>
+        <Harness />
+      </CartProvider>
+    );
+
+    // Initial state: in cart is 0
+    expect(screen.getByTestId("in-cart-badge")).toHaveTextContent("In Cart: 0");
+    const orderBtn = screen.getByTestId("add-to-order-btn-TEST-LTD-1");
+    expect(orderBtn).toHaveTextContent("Add to Order");
+    expect(orderBtn).toBeEnabled();
+
+    // Add 1 to cart -> reaches stock quantity (1)
+    fireEvent.click(screen.getByTestId("add-btn-test"));
+
+    expect(screen.getByTestId("in-cart-badge")).toHaveTextContent("In Cart: 1");
+    expect(orderBtn).toHaveTextContent("All Stock in Cart");
+    expect(orderBtn).toBeDisabled();
   });
 
   it("loads and displays product grid with category filter pills on CatalogPage", async () => {

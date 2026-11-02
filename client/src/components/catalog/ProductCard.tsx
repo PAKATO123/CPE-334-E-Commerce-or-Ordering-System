@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Product } from "../../types/product";
 import { formatUSD } from "../../utils/currency";
+import { CartContext } from "../../context/CartContext";
 
 interface ProductCardProps {
   product: Product;
@@ -8,7 +9,10 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
+  const cart = useContext(CartContext);
+  const inCartQuantity = cart ? cart.getItemQuantity(product.id) : 0;
   const isOutOfStock = product.stockQuantity === 0;
+  const isCartMaxed = !isOutOfStock && inCartQuantity >= product.stockQuantity;
 
   return (
     <div
@@ -113,7 +117,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
             </span>
           </div>
 
-          <div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
             {isOutOfStock ? (
               <span
                 data-testid="out-of-stock-badge"
@@ -130,20 +134,37 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
                 Out of Stock
               </span>
             ) : (
-              <span
-                data-testid="in-stock-badge"
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  padding: "4px 10px",
-                  borderRadius: "12px",
-                  backgroundColor: "#EAF6EF",
-                  color: "#0B7A46",
-                  border: "1px solid #C6E7D2",
-                }}
-              >
-                In Stock ({product.stockQuantity})
-              </span>
+              <>
+                <span
+                  data-testid="in-stock-badge"
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    padding: "4px 10px",
+                    borderRadius: "12px",
+                    backgroundColor: "#EAF6EF",
+                    color: "#0B7A46",
+                    border: "1px solid #C6E7D2",
+                  }}
+                >
+                  In Stock ({product.stockQuantity})
+                </span>
+
+                <span
+                  data-testid="in-cart-badge"
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                    borderRadius: "10px",
+                    backgroundColor: isCartMaxed ? "#FEFCBF" : inCartQuantity > 0 ? "#EBF8FF" : "#F7FAFC",
+                    color: isCartMaxed ? "#975A16" : inCartQuantity > 0 ? "#2B6CB0" : "#718096",
+                    border: `1px solid ${isCartMaxed ? "#F6E05E" : inCartQuantity > 0 ? "#BEE3F8" : "#E2E8F0"}`,
+                  }}
+                >
+                  In Cart: {inCartQuantity}
+                </span>
+              </>
             )}
           </div>
         </div>
@@ -151,19 +172,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
         {/* Action Button */}
         <button
           type="button"
-          disabled={isOutOfStock}
+          disabled={isOutOfStock || isCartMaxed}
           onClick={() => onAddToCart && onAddToCart(product, 1)}
-          className={isOutOfStock ? "tt-btn" : "tt-btn tt-btn-primary"}
+          className={isOutOfStock || isCartMaxed ? "tt-btn" : "tt-btn tt-btn-primary"}
           data-testid={`add-to-order-btn-${product.sku}`}
           style={{
             width: "100%",
             height: "40px",
             fontWeight: 600,
             fontSize: "14px",
-            cursor: isOutOfStock ? "not-allowed" : "pointer",
+            cursor: isOutOfStock || isCartMaxed ? "not-allowed" : "pointer",
+            backgroundColor: isCartMaxed ? "#EDF2F7" : undefined,
+            color: isCartMaxed ? "#718096" : undefined,
+            borderColor: isCartMaxed ? "#CBD5E0" : undefined,
           }}
         >
-          {isOutOfStock ? "Out of Stock" : "Add to Order"}
+          {isOutOfStock
+            ? "Out of Stock"
+            : isCartMaxed
+            ? "All Stock in Cart"
+            : "Add to Order"}
         </button>
       </div>
     </div>

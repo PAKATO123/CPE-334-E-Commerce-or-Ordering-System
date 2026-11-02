@@ -6,12 +6,15 @@ export interface CartItem {
   quantity: number;
 }
 
-interface CartContextType {
+export interface CartContextType {
   items: CartItem[];
   addToCart: (product: Product, quantity?: number) => void;
   updateQuantity: (productId: number, quantity: number) => void;
   removeFromCart: (productId: number) => void;
   clearCart: () => void;
+  getItemQuantity: (productId: number) => number;
+  catalogVersion: number;
+  refreshCatalog: () => void;
   totalItemCount: number;
   totalAmount: number;
   isCartOpen: boolean;
@@ -19,7 +22,7 @@ interface CartContextType {
   closeCart: () => void;
 }
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
+export const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const CART_STORAGE_KEY = "techtent_cart_items";
 
@@ -34,6 +37,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [catalogVersion, setCatalogVersion] = useState<number>(0);
+
+  const refreshCatalog = () => setCatalogVersion((v) => v + 1);
+
+  const getItemQuantity = (productId: number): number => {
+    const item = items.find((i) => i.product.id === productId);
+    return item ? item.quantity : 0;
+  };
 
   useEffect(() => {
     try {
@@ -104,6 +115,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateQuantity,
         removeFromCart,
         clearCart,
+        getItemQuantity,
+        catalogVersion,
+        refreshCatalog,
         totalItemCount,
         totalAmount,
         isCartOpen,
@@ -123,3 +137,4 @@ export function useCart(): CartContextType {
   }
   return context;
 }
+
