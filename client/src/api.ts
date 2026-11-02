@@ -158,3 +158,35 @@ export async function createOrderApi(payload: CreateOrderPayload): Promise<{ dat
   }
   return json;
 }
+
+export async function getMyOrdersApi(): Promise<{ data: OrderData[] }> {
+  const res = await fetch(`${API_BASE_URL}/api/orders`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to fetch orders.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+export async function getOrderByIdApi(id: number | string): Promise<{ data: OrderData }> {
+  const res = await fetch(`${API_BASE_URL}/api/orders/${id}`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to fetch order detail.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
