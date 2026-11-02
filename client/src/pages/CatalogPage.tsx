@@ -5,11 +5,12 @@ import { Product, CategoryFilter } from "../types/product";
 import { getProductsApi, getCategoriesApi } from "../api";
 import ProductCard from "../components/catalog/ProductCard";
 
-interface ToastNotificationState {
+interface ToastNotificationItem {
   id: number;
   title: string;
   text: string;
   sku?: string;
+  timestamp: number;
 }
 
 export const CatalogPage: React.FC = () => {
@@ -22,7 +23,7 @@ export const CatalogPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<ToastNotificationState | null>(null);
+  const [toasts, setToasts] = useState<ToastNotificationItem[]>([]);
 
   const fetchCatalog = async () => {
     setLoading(true);
@@ -52,15 +53,6 @@ export const CatalogPage: React.FC = () => {
     fetchCatalog();
   }, [selectedCategory]);
 
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => {
-        setToastMessage(null);
-      }, 3500);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
-
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchCatalog();
@@ -77,6 +69,10 @@ export const CatalogPage: React.FC = () => {
       .finally(() => setLoading(false));
   };
 
+  const removeToast = (id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
   const handleAddToCart = (product: Product, quantity: number = 1) => {
     // Anonymous user redirection: prompt login before cart interaction
     if (!user) {
@@ -84,87 +80,119 @@ export const CatalogPage: React.FC = () => {
       return;
     }
 
-    // Authenticated user: show custom bottom-right notification modal
-    setToastMessage({
-      id: Date.now(),
+    const toastId = Date.now() + Math.random();
+    const newToast: ToastNotificationItem = {
+      id: toastId,
       title: "Added to Order",
       text: `${quantity}x ${product.name}`,
       sku: product.sku,
-    });
+      timestamp: Date.now(),
+    };
+
+    // Prepend so index 0 is always the newest item (at the bottom of column-reverse)
+    setToasts((prev) => [newToast, ...prev].slice(0, 4));
+
+    // Auto-dismiss after 4 seconds
+    setTimeout(() => {
+      removeToast(toastId);
+    }, 4000);
   };
 
   return (
     <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "28px 20px" }}>
-      {/* Custom Bottom-Right Notification Modal */}
-      {toastMessage && (
+      {/* Stacked Bottom-Right Notifications (Old pushes up, New arrives at bottom) */}
+      {toasts.length > 0 && (
         <div
-          className="tt-toast"
+          className="tt-toast-stack"
           role="status"
           aria-live="polite"
-          data-testid="toast-notification"
-          style={{
-            position: "fixed",
-            bottom: "24px",
-            right: "24px",
-            zIndex: 1500,
-            backgroundColor: "#EAF6EF",
-            border: "2px solid #006B3C",
-            color: "#1A2E22",
-            borderRadius: "8px",
-            padding: "14px 18px",
-            boxShadow: "0 8px 24px rgba(0, 107, 60, 0.2)",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "12px",
-            maxWidth: "360px",
-            animation: "tt-slide-up 0.2s ease-out",
-          }}
+          data-testid="toast-stack-container"
         >
-          <div
-            style={{
-              width: "22px",
-              height: "22px",
-              borderRadius: "50%",
-              backgroundColor: "#006B3C",
-              color: "#FFFFFF",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "12px",
-              fontWeight: 700,
-              flexShrink: 0,
-              marginTop: "2px",
-            }}
-          >
-            ✓
-          </div>
+          {toasts.map((toast, index) => {
+            const isNewest = index === 0;
+            return (
+              <div
+                key={toast.id}
+                className={`tt-toast-item ${isNewest ? "tt-toast-item-new" : "tt-toast-item-old"}`}
+                data-testid="toast-notification"
+                data-toast-sku={toast.sku}
+                style={{
+                  transform: isNewest ? "none" : `scale(${Math.max(0.92, 1 - index * 0.03)})`,
+                }}
+              >
+                {/* Status Indicator Icon */}
+                <div
+                  style={{
+                    width: "22px",
+                    height: "22px",
+                    borderRadius: "50%",
+                    backgroundColor: isNewest ? "#006B3C" : "#718096",
+                    color: "#FFFFFF",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    flexShrink: 0,
+                    marginTop: "2px",
+                  }}
+                >
+                  ✓
+                </div>
 
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: "14px", color: "#006B3C", marginBottom: "2px" }}>
-              {toastMessage.title}
-            </div>
-            <div style={{ fontSize: "13px", color: "#2D3748", lineHeight: 1.4 }}>
-              {toastMessage.text}
-            </div>
-          </div>
+                {/* Content */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        fontSize: "14px",
+                        color: isNewest ? "#006B3C" : "#2D3748",
+                      }}
+                    >
+                      {toast.title}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: "4px",
+                        backgroundColor: isNewest ? "#006B3C" : "#E2E8F0",
+                        color: isNewest ? "#FFFFFF" : "#4A5568",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      {isNewest ? "NEW" : "PREVIOUS"}
+                    </span>
+                  </div>
 
-          <button
-            type="button"
-            onClick={() => setToastMessage(null)}
-            data-testid="close-toast-btn"
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: "18px",
-              lineHeight: 1,
-              padding: "0 2px",
-              color: "#4A5568",
-            }}
-            aria-label="Close notification"
-          >
-            ×
-          </button>
+                  <div style={{ fontSize: "13px", color: isNewest ? "#1A2E22" : "#4A5568", lineHeight: 1.4 }}>
+                    {toast.text}
+                  </div>
+                </div>
+
+                {/* Dismiss Button */}
+                <button
+                  type="button"
+                  onClick={() => removeToast(toast.id)}
+                  data-testid="close-toast-btn"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "18px",
+                    lineHeight: 1,
+                    padding: "0 2px",
+                    color: isNewest ? "#006B3C" : "#718096",
+                  }}
+                  aria-label="Close notification"
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 

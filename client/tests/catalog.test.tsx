@@ -136,9 +136,8 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
     });
   });
 
-  it("renders custom bottom-right notification modal when authenticated customer clicks 'Add to Order'", async () => {
-    // getMeApi returns logged-in customer
-    vi.mocked(api.getMeApi).mockResolvedValueOnce({
+  it("renders custom bottom-right notification stack and pushes older notification up on successive additions", async () => {
+    vi.mocked(api.getMeApi).mockResolvedValue({
       user: {
         id: 1,
         email: "customer1@example.com",
@@ -148,8 +147,8 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
         isActive: true,
       },
     });
-    vi.mocked(api.getProductsApi).mockResolvedValueOnce({ data: MOCK_PRODUCTS });
-    vi.mocked(api.getCategoriesApi).mockResolvedValueOnce({ data: ["Smartphones"] });
+    vi.mocked(api.getProductsApi).mockResolvedValue({ data: MOCK_PRODUCTS });
+    vi.mocked(api.getCategoriesApi).mockResolvedValue({ data: ["Smartphones", "Keyboards"] });
 
     render(
       <AuthProvider>
@@ -163,24 +162,43 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
       expect(screen.getByText("Flagship Pro Smartphone 256GB")).toBeInTheDocument();
     });
 
-    // Click "Add to Order" as authenticated user
-    const addBtn = screen.getByTestId("add-to-order-btn-PHON-PRO-256");
-    fireEvent.click(addBtn);
+    // 1. Add first product (Phone)
+    const phoneBtn = screen.getByTestId("add-to-order-btn-PHON-PRO-256");
+    fireEvent.click(phoneBtn);
 
-    // Verifies custom bottom-right notification modal appears
     await waitFor(() => {
-      const toast = screen.getByTestId("toast-notification");
-      expect(toast).toBeInTheDocument();
-      expect(toast).toHaveTextContent("Added to Order");
-      expect(toast).toHaveTextContent("1x Flagship Pro Smartphone 256GB");
+      const toasts = screen.getAllByTestId("toast-notification");
+      expect(toasts.length).toBe(1);
+      expect(toasts[0]).toHaveTextContent("1x Flagship Pro Smartphone 256GB");
+      expect(toasts[0]).toHaveTextContent("NEW");
     });
 
-    // Close notification via close button
-    const closeBtn = screen.getByTestId("close-toast-btn");
-    fireEvent.click(closeBtn);
+    // 2. Add second product (Keyboard)
+    const kbBtn = screen.getByTestId("add-to-order-btn-KB-MECH-RGB");
+    fireEvent.click(kbBtn);
+
+    // Both should now be visible in stack: Keyboard is newest (NEW), Phone is pushed up (PREVIOUS)
+    await waitFor(() => {
+      const toasts = screen.getAllByTestId("toast-notification");
+      expect(toasts.length).toBe(2);
+
+      // Newest toast (Keyboard)
+      expect(toasts[0]).toHaveTextContent("1x Wireless Mechanical Keyboard");
+      expect(toasts[0]).toHaveTextContent("NEW");
+
+      // Older pushed-up toast (Phone)
+      expect(toasts[1]).toHaveTextContent("1x Flagship Pro Smartphone 256GB");
+      expect(toasts[1]).toHaveTextContent("PREVIOUS");
+    });
+
+    // Dismiss first toast via close button
+    const closeButtons = screen.getAllByTestId("close-toast-btn");
+    fireEvent.click(closeButtons[0]);
 
     await waitFor(() => {
-      expect(screen.queryByTestId("toast-notification")).not.toBeInTheDocument();
+      const remainingToasts = screen.getAllByTestId("toast-notification");
+      expect(remainingToasts.length).toBe(1);
+      expect(remainingToasts[0]).toHaveTextContent("1x Flagship Pro Smartphone 256GB");
     });
   });
 });

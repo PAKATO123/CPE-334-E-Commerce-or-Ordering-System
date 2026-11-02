@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import LoginForm from "../src/components/auth/LoginForm";
 import RoleGuard from "../src/components/RoleGuard";
+import AppShell from "../src/components/AppShell";
 import { AuthProvider } from "../src/context/AuthContext";
 import * as api from "../src/api";
 
@@ -82,6 +83,27 @@ describe("Feature 1: Client Authentication Components", () => {
     await waitFor(() => {
       expect(screen.getByText("Login Page Mock")).toBeInTheDocument();
       expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
+    });
+  });
+
+  it("hides header Sign In button when visitor is already on /login route", async () => {
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={["/login"]}>
+          <Routes>
+            <Route path="/" element={<AppShell />}>
+              <Route path="login" element={<div>Login Screen Body</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Login Screen Body")).toBeInTheDocument();
+      expect(screen.getByText("⛺ TechTent")).toBeInTheDocument();
+      // On /login, header Sign In link should not be rendered
+      expect(screen.queryByRole("link", { name: /^Sign In$/i })).not.toBeInTheDocument();
     });
   });
 });
