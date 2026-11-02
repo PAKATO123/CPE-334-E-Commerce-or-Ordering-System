@@ -12,3 +12,4 @@ export interface Product {
 }
 
 export type CategoryFilter = "All" | string;
+

@@ -1,15 +1,28 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { Product, CategoryFilter } from "../types/product";
 import { getProductsApi, getCategoriesApi } from "../api";
 import ProductCard from "../components/catalog/ProductCard";
 
+interface ToastNotificationState {
+  id: number;
+  title: string;
+  text: string;
+  sku?: string;
+}
+
 export const CatalogPage: React.FC = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<ToastNotificationState | null>(null);
 
   const fetchCatalog = async () => {
     setLoading(true);
@@ -39,6 +52,15 @@ export const CatalogPage: React.FC = () => {
     fetchCatalog();
   }, [selectedCategory]);
 
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchCatalog();
@@ -46,7 +68,6 @@ export const CatalogPage: React.FC = () => {
 
   const handleClearSearch = () => {
     setSearchQuery("");
-    // Trigger re-fetch without search parameter
     setLoading(true);
     getProductsApi({
       category: selectedCategory !== "All" ? selectedCategory : undefined,
@@ -56,8 +77,97 @@ export const CatalogPage: React.FC = () => {
       .finally(() => setLoading(false));
   };
 
+  const handleAddToCart = (product: Product, quantity: number = 1) => {
+    // Anonymous user redirection: prompt login before cart interaction
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    // Authenticated user: show custom bottom-right notification modal
+    setToastMessage({
+      id: Date.now(),
+      title: "Added to Order",
+      text: `${quantity}x ${product.name}`,
+      sku: product.sku,
+    });
+  };
+
   return (
     <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "28px 20px" }}>
+      {/* Custom Bottom-Right Notification Modal */}
+      {toastMessage && (
+        <div
+          className="tt-toast"
+          role="status"
+          aria-live="polite"
+          data-testid="toast-notification"
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            right: "24px",
+            zIndex: 1500,
+            backgroundColor: "#EAF6EF",
+            border: "2px solid #006B3C",
+            color: "#1A2E22",
+            borderRadius: "8px",
+            padding: "14px 18px",
+            boxShadow: "0 8px 24px rgba(0, 107, 60, 0.2)",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "12px",
+            maxWidth: "360px",
+            animation: "tt-slide-up 0.2s ease-out",
+          }}
+        >
+          <div
+            style={{
+              width: "22px",
+              height: "22px",
+              borderRadius: "50%",
+              backgroundColor: "#006B3C",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "12px",
+              fontWeight: 700,
+              flexShrink: 0,
+              marginTop: "2px",
+            }}
+          >
+            ✓
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: "14px", color: "#006B3C", marginBottom: "2px" }}>
+              {toastMessage.title}
+            </div>
+            <div style={{ fontSize: "13px", color: "#2D3748", lineHeight: 1.4 }}>
+              {toastMessage.text}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            data-testid="close-toast-btn"
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "18px",
+              lineHeight: 1,
+              padding: "0 2px",
+              color: "#4A5568",
+            }}
+            aria-label="Close notification"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Hero / Header Section */}
       <div style={{ marginBottom: "28px" }}>
         <h1 style={{ fontSize: "28px", fontWeight: 700, color: "#1A2E22", marginBottom: "6px" }}>
@@ -249,9 +359,7 @@ export const CatalogPage: React.FC = () => {
             <ProductCard
               key={product.id}
               product={product}
-              onAddToCart={(p, qty) => {
-                alert(`Added ${qty}x ${p.name} to order preview! (Sprint 1 Order Assembly: Feature 3)`);
-              }}
+              onAddToCart={handleAddToCart}
             />
           ))}
         </div>

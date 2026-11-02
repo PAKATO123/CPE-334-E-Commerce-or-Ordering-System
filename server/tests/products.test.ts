@@ -118,3 +118,4 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
     expect(res.body.data).toContain("Chargers & Power");
   });
 });
+

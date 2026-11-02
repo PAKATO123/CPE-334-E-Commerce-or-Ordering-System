@@ -1,10 +1,12 @@
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 import ProductCard from "../src/components/catalog/ProductCard";
 import CatalogPage from "../src/pages/CatalogPage";
 import * as api from "../src/api";
 import { Product } from "../src/types/product";
+import { AuthProvider } from "../src/context/AuthContext";
 
 const MOCK_PRODUCTS: Product[] = [
   {
@@ -40,11 +42,19 @@ const MOCK_PRODUCTS: Product[] = [
 ];
 
 vi.mock("../src/api", () => ({
+  loginApi: vi.fn(),
+  logoutApi: vi.fn(),
+  getMeApi: vi.fn(),
+  changePasswordApi: vi.fn(),
   getProductsApi: vi.fn(),
   getCategoriesApi: vi.fn(),
 }));
 
 describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("renders product card with authoritative USD price ($899.00) and in-stock badge", () => {
     render(<ProductCard product={MOCK_PRODUCTS[0]} />);
 
@@ -70,12 +80,19 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
   });
 
   it("loads and displays product grid with category filter pills on CatalogPage", async () => {
+    vi.mocked(api.getMeApi).mockRejectedValueOnce(new Error("Unauthorized"));
     vi.mocked(api.getProductsApi).mockResolvedValueOnce({ data: MOCK_PRODUCTS });
     vi.mocked(api.getCategoriesApi).mockResolvedValueOnce({
       data: ["Smartphones", "Keyboards"],
     });
 
-    render(<CatalogPage />);
+    render(
+      <AuthProvider>
+        <MemoryRouter>
+          <CatalogPage />
+        </MemoryRouter>
+      </AuthProvider>
+    );
 
     expect(screen.getByText(/Loading TechTent inventory/i)).toBeInTheDocument();
 
@@ -84,6 +101,86 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
       expect(screen.getByText("Flagship Pro Smartphone 256GB")).toBeInTheDocument();
       expect(screen.getByText("Wireless Mechanical Keyboard")).toBeInTheDocument();
       expect(screen.getByText("All Items")).toBeInTheDocument();
+    });
+  });
+
+  it("redirects anonymous visitor to /login when clicking 'Add to Order' without showing toast", async () => {
+    // getMeApi fails -> user is null (Anonymous)
+    vi.mocked(api.getMeApi).mockRejectedValueOnce(new Error("Unauthorized"));
+    vi.mocked(api.getProductsApi).mockResolvedValueOnce({ data: MOCK_PRODUCTS });
+    vi.mocked(api.getCategoriesApi).mockResolvedValueOnce({ data: ["Smartphones"] });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={["/"]}>
+          <Routes>
+            <Route path="/" element={<CatalogPage />} />
+            <Route path="/login" element={<div>Sign In Destination Mock</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Flagship Pro Smartphone 256GB")).toBeInTheDocument();
+    });
+
+    // Click "Add to Order" as anonymous
+    const addBtn = screen.getByTestId("add-to-order-btn-PHON-PRO-256");
+    fireEvent.click(addBtn);
+
+    // Verifies immediate redirect to /login and zero toast notification shown
+    await waitFor(() => {
+      expect(screen.getByText("Sign In Destination Mock")).toBeInTheDocument();
+      expect(screen.queryByTestId("toast-notification")).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders custom bottom-right notification modal when authenticated customer clicks 'Add to Order'", async () => {
+    // getMeApi returns logged-in customer
+    vi.mocked(api.getMeApi).mockResolvedValueOnce({
+      user: {
+        id: 1,
+        email: "customer1@example.com",
+        name: "Alice Customer",
+        role: "CUSTOMER",
+        mustChangePassword: false,
+        isActive: true,
+      },
+    });
+    vi.mocked(api.getProductsApi).mockResolvedValueOnce({ data: MOCK_PRODUCTS });
+    vi.mocked(api.getCategoriesApi).mockResolvedValueOnce({ data: ["Smartphones"] });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={["/"]}>
+          <CatalogPage />
+        </MemoryRouter>
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Flagship Pro Smartphone 256GB")).toBeInTheDocument();
+    });
+
+    // Click "Add to Order" as authenticated user
+    const addBtn = screen.getByTestId("add-to-order-btn-PHON-PRO-256");
+    fireEvent.click(addBtn);
+
+    // Verifies custom bottom-right notification modal appears
+    await waitFor(() => {
+      const toast = screen.getByTestId("toast-notification");
+      expect(toast).toBeInTheDocument();
+      expect(toast).toHaveTextContent("Added to Order");
+      expect(toast).toHaveTextContent("1x Flagship Pro Smartphone 256GB");
+    });
+
+    // Close notification via close button
+    const closeBtn = screen.getByTestId("close-toast-btn");
+    fireEvent.click(closeBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("toast-notification")).not.toBeInTheDocument();
     });
   });
 });
