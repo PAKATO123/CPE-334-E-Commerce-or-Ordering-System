@@ -6,6 +6,7 @@ import LoginForm from "../src/components/auth/LoginForm";
 import RoleGuard from "../src/components/RoleGuard";
 import AppShell from "../src/components/AppShell";
 import { AuthProvider } from "../src/context/AuthContext";
+import { CartProvider } from "../src/context/CartContext";
 import * as api from "../src/api";
 
 vi.mock("../src/api", () => ({
@@ -89,13 +90,15 @@ describe("Feature 1: Client Authentication Components", () => {
   it("hides header Sign In button when visitor is already on /login route", async () => {
     render(
       <AuthProvider>
-        <MemoryRouter initialEntries={["/login"]}>
-          <Routes>
-            <Route path="/" element={<AppShell />}>
-              <Route path="login" element={<div>Login Screen Body</div>} />
-            </Route>
-          </Routes>
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter initialEntries={["/login"]}>
+            <Routes>
+              <Route path="/" element={<AppShell />}>
+                <Route path="login" element={<div>Login Screen Body</div>} />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>
     );
 

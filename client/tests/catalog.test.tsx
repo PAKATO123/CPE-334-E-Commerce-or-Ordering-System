@@ -7,6 +7,7 @@ import CatalogPage from "../src/pages/CatalogPage";
 import * as api from "../src/api";
 import { Product } from "../src/types/product";
 import { AuthProvider } from "../src/context/AuthContext";
+import { CartProvider } from "../src/context/CartContext";
 
 const MOCK_PRODUCTS: Product[] = [
   {
@@ -88,9 +89,11 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
 
     render(
       <AuthProvider>
-        <MemoryRouter>
-          <CatalogPage />
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter>
+            <CatalogPage />
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>
     );
 
@@ -112,12 +115,14 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
 
     render(
       <AuthProvider>
-        <MemoryRouter initialEntries={["/"]}>
-          <Routes>
-            <Route path="/" element={<CatalogPage />} />
-            <Route path="/login" element={<div>Sign In Destination Mock</div>} />
-          </Routes>
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter initialEntries={["/"]}>
+            <Routes>
+              <Route path="/" element={<CatalogPage />} />
+              <Route path="/login" element={<div>Sign In Destination Mock</div>} />
+            </Routes>
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>
     );
 
@@ -152,9 +157,11 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
 
     render(
       <AuthProvider>
-        <MemoryRouter initialEntries={["/"]}>
-          <CatalogPage />
-        </MemoryRouter>
+        <CartProvider>
+          <MemoryRouter initialEntries={["/"]}>
+            <CatalogPage />
+          </MemoryRouter>
+        </CartProvider>
       </AuthProvider>
     );
 

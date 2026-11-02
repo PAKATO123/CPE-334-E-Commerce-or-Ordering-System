@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import { Product, CategoryFilter } from "../types/product";
 import { getProductsApi, getCategoriesApi } from "../api";
 import ProductCard from "../components/catalog/ProductCard";
@@ -15,6 +16,7 @@ interface ToastNotificationItem {
 
 export const CatalogPage: React.FC = () => {
   const { user } = useAuth();
+  const { addToCart } = useCart();
   const navigate = useNavigate();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -79,6 +81,8 @@ export const CatalogPage: React.FC = () => {
       navigate("/login");
       return;
     }
+
+    addToCart(product, quantity);
 
     const toastId = Date.now() + Math.random();
     const newToast: ToastNotificationItem = {

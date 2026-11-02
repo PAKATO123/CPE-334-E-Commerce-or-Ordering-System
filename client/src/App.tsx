@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { CartProvider } from "./context/CartContext";
 import AppShell from "./components/AppShell";
 import RoleGuard from "./components/RoleGuard";
 import CatalogPage from "./pages/CatalogPage";
@@ -32,9 +33,11 @@ export function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <CartProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </CartProvider>
     </AuthProvider>
   );
 }
