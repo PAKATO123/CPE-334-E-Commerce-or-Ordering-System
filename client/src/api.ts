@@ -69,3 +69,66 @@ export async function changePasswordApi(payload: ChangePasswordPayload): Promise
   }
   return json;
 }
+
+// ---------------------------------------------------------------------------
+// Product Catalog & Inventory API Calls (F-02)
+// ---------------------------------------------------------------------------
+
+import { Product } from "./types/product";
+
+export async function getProductsApi(params?: { category?: string; search?: string }): Promise<{ data: Product[] }> {
+  const query = new URLSearchParams();
+  if (params?.category && params.category !== "All") {
+    query.set("category", params.category);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set("search", params.search.trim());
+  }
+
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  const res = await fetch(`${API_BASE_URL}/api/products${qs}`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to fetch products.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+export async function getProductByIdApi(id: number): Promise<{ data: Product }> {
+  const res = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Product not found.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+export async function getCategoriesApi(): Promise<{ data: string[] }> {
+  const res = await fetch(`${API_BASE_URL}/api/categories`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to fetch categories.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}

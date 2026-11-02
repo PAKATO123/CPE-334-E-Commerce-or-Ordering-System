@@ -35,9 +35,9 @@ The Sprint 1 verification strategy ensures comprehensive test coverage across th
 | **TEST-ORD-02** | AC-ORD-02 | Integration | Keyboard stock = 15, order quantity = 2 | Send `POST /api/orders` with quantity 2 | Order created; subsequent product query confirms stock is now 13 |
 | **TEST-ORD-03** | AC-ORD-03 | Unit | Order placed on 2026-11-01 | Execute order number generator | Generates string matching regex `^ORD-\d{8}-\d{4}$` |
 | **TEST-ORD-04** | AC-ORD-04 | Integration | Customer 1 has 2 orders, Customer 2 has 1 order | Authenticate as Customer 1, `GET /api/orders` | Returns only Customer 1's 2 orders |
-| **TEST-ORD-05** | AC-ORD-05 | Integration | Order placed with unit price ฿28,900; catalog price later updated to ฿30,000 | Retrieve order receipt `GET /api/orders/:id` | Receipt line item unit price remains exactly ฿28,900.00 (historic price preserved) |
+| **TEST-ORD-05** | AC-ORD-05 | Integration | Order placed with unit price $899.00; catalog price later updated to $950.00 | Retrieve order receipt `GET /api/orders/:id` | Receipt line item unit price remains exactly $899.00 (historic price preserved) |
 | **TEST-BR-01** | AC-BR-01 | Integration | Client sends `POST /api/orders` with manipulated `"unitPrice": 0.01` and `"totalAmount": 0.02` | Execute order creation request | Server ignores client prices, calculates totals authoritatively from DB records |
-| **TEST-BR-02** | AC-BR-02 | Integration | Pro Phone priced at ฿28,900 in DB | Send `POST /api/orders` | `OrderItem.unitPrice` in database is `28900.00` |
+| **TEST-BR-02** | AC-BR-02 | Integration | Pro Phone priced at $899.00 in DB | Send `POST /api/orders` | `OrderItem.unitPrice` in database is `899.00` |
 | **TEST-BR-03** | AC-BR-03 | Integration | Tablet has stock = 2; order requests quantity = 5 | Send `POST /api/orders` | Status `409 Conflict`, error `INSUFFICIENT_STOCK`, stock remains unchanged at 2 |
 | **TEST-BR-04** | AC-BR-04 | Unit / API | Order payload contains quantity = 0 or -1 | Send `POST /api/orders` | Status `400 Bad Request`, error `INVALID_QUANTITY` |
 | **TEST-SEC-01** | AC-SEC-01 | Integration | Customer 1 logged in; order #99 belongs to Customer 2 | Send `GET /api/orders/99` | Status `403 Forbidden` (or 404), zero order details exposed |

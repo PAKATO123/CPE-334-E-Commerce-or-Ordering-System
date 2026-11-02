@@ -76,20 +76,20 @@
 
 ### 2.1 Overview & Requirements Linkage
 - **Linked Requirements**: FR-01, FR-02, BR-01
-- **Description**: Displays the active TechTent inventory. Customers can view item names, SKUs, categories (Smartphones, Tablets, Smart TVs, Keyboards, Chargers), descriptions, authoritative prices (THB), and available stock.
-
+- **Description**: Displays the active TechTent inventory. Customers can view item names, SKUs, categories (Smartphones, Tablets, Smart TVs, Keyboards, Chargers), descriptions, authoritative prices (USD), and available stock.
+ 
 ### 2.2 User Interface Behavior
 - **Screen**: `/` (CatalogPage).
 - **Layout**: Grid of electronic product cards grouped or filterable by Category (`Smartphones`, `Tablets`, `Smart TVs`, `Keyboards`, `Chargers & Power`).
 - **Card Elements**:
-  - SKU pill (`PHON-PRO-256`), Product Name, Category badge, Description, Authoritative Unit Price (`฿28,900.00`).
+  - SKU pill (`PHON-PRO-256`), Product Name, Category badge, Description, Authoritative Unit Price (`$899.00`).
   - Stock Indicator:
     - In Stock (`stockQuantity > 0`): Displays green badge (e.g., `In Stock: 10 available`).
     - Out of Stock (`stockQuantity == 0`): Displays muted red badge (`Out of Stock`), disables quantity input and "Add to Order" button.
 - **Cart Summary Strip**: Floating counter displaying total items added and running total amount.
-
+ 
 ### 2.3 API Endpoint Specifications
-
+ 
 #### GET /api/products
 - **Access**: Public / Authenticated
 - **Success Response (`200 OK`)**:
@@ -102,7 +102,7 @@
         "name": "Flagship Pro Smartphone 256GB",
         "category": "Smartphones",
         "description": "6.7-inch OLED display, 5G flagship processor, triple-camera array.",
-        "price": "28900.00",
+        "price": "899.00",
         "stockQuantity": 10,
         "isActive": true
       },
@@ -112,7 +112,7 @@
         "name": "Wireless Mechanical Keyboard",
         "category": "Keyboards",
         "description": "Multi-device Bluetooth/2.4GHz RGB mechanical keyboard with hot-swap switches.",
-        "price": "2490.00",
+        "price": "79.00",
         "stockQuantity": 15,
         "isActive": true
       }
@@ -165,7 +165,7 @@
       "orderNumber": "ORD-20261101-0001",
       "customerId": 1,
       "status": "PENDING",
-      "totalAmount": "33880.00",
+      "totalAmount": "1057.00",
       "createdAt": "2026-11-01T15:30:00.000Z",
       "items": [
         {
@@ -173,18 +173,18 @@
           "productId": 1,
           "productName": "Flagship Pro Smartphone 256GB",
           "sku": "PHON-PRO-256",
-          "unitPrice": "28900.00",
+          "unitPrice": "899.00",
           "quantity": 1,
-          "subtotal": "28900.00"
+          "subtotal": "899.00"
         },
         {
           "id": 102,
           "productId": 2,
           "productName": "Wireless Mechanical Keyboard",
           "sku": "KB-MECH-RGB",
-          "unitPrice": "2490.00",
+          "unitPrice": "79.00",
           "quantity": 2,
-          "subtotal": "4980.00"
+          "subtotal": "158.00"
         }
       ]
     }
@@ -263,7 +263,7 @@
 - **Screen**: `/operator/orders` (OperatorOrdersPage).
 - **Controls**:
   - Status Filter Tabs: `All`, `Pending`, `Accepted`, `Rejected`.
-  - Queue Cards / Table: Order Number, Customer Name & Email, Placement Time, Item Count, Total (฿), Current Status badge.
+  - Queue Cards / Table: Order Number, Customer Name & Email, Placement Time, Item Count, Total ($), Current Status badge.
   - Action Buttons (on `PENDING` orders):
     - "Accept Order" (Green button): Transitions order to `ACCEPTED`.
     - "Reject Order" (Red outline button): Prompts for confirmation and transitions order to `REJECTED`, releasing inventory.

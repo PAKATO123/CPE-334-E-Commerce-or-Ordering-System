@@ -195,6 +195,102 @@ app.post("/api/auth/change-password", requireAuth, async (req: Request, res: Res
 });
 
 // ---------------------------------------------------------------------------
+// Product Catalog & Inventory Endpoints (F-02)
+// ---------------------------------------------------------------------------
+
+app.get("/api/products", async (req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+    const { category, search } = req.query;
+
+    const where: any = { isActive: true };
+
+    if (category && typeof category === "string" && category !== "All") {
+      where.category = category;
+    }
+
+    if (search && typeof search === "string" && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { sku: { contains: q, mode: "insensitive" } },
+      ];
+    }
+
+    const products = await prisma.product.findMany({
+      where,
+      orderBy: { id: "asc" },
+    });
+
+    const formatted = products.map((p) => ({
+      ...p,
+      price: Number(p.price).toFixed(2),
+    }));
+
+    return res.status(200).json({ data: formatted });
+  } catch (error) {
+    console.error("Fetch products error:", error);
+    return res.status(500).json({
+      error: { code: "INTERNAL_ERROR", message: "Failed to fetch products." },
+    });
+  }
+});
+
+app.get("/api/products/:id", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({
+        error: { code: "INVALID_ID", message: "Product ID must be an integer." },
+      });
+    }
+
+    const prisma = getPrisma();
+    const product = await prisma.product.findFirst({
+      where: { id, isActive: true },
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        error: { code: "PRODUCT_NOT_FOUND", message: "Product not found or inactive." },
+      });
+    }
+
+    return res.status(200).json({
+      data: {
+        ...product,
+        price: Number(product.price).toFixed(2),
+      },
+    });
+  } catch (error) {
+    console.error("Fetch product error:", error);
+    return res.status(500).json({
+      error: { code: "INTERNAL_ERROR", message: "Failed to fetch product." },
+    });
+  }
+});
+
+app.get("/api/categories", async (_req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+    const records = await prisma.product.findMany({
+      where: { isActive: true },
+      select: { category: true },
+      distinct: ["category"],
+      orderBy: { category: "asc" },
+    });
+
+    return res.status(200).json({ data: records.map((r) => r.category) });
+  } catch (error) {
+    console.error("Fetch categories error:", error);
+    return res.status(500).json({
+      error: { code: "INTERNAL_ERROR", message: "Failed to fetch categories." },
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Operator Orders Queue (F-05 skeleton for testing RBAC / requireRole)
 // ---------------------------------------------------------------------------
 app.get("/api/operator/orders", requireAuth, requireRole("OPERATOR", "ADMIN"), (_req: Request, res: Response) => {
