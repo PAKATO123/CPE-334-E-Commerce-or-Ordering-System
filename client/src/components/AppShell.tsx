@@ -35,7 +35,7 @@ export const AppShell: React.FC = () => {
       {/* Confirmation Modal when an order is placed */}
       <OrderConfirmationModal order={confirmedOrder} onClose={() => setConfirmedOrder(null)} />
 
-      <header className="tt-header">
+      <header className="tt-header no-print">
         <div className="tt-header-inner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px", maxWidth: "1200px", margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
             <Link to="/" className="tt-brand" style={{ fontWeight: 700, fontSize: "1.25rem", textDecoration: "none", color: "#FFFFFF" }}>

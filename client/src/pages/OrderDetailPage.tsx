@@ -29,6 +29,17 @@ export const OrderDetailPage: React.FC = () => {
       });
   }, [id]);
 
+  useEffect(() => {
+    if (order) {
+      document.title = `Receipt - ${order.orderNumber} | TechTent`;
+    } else {
+      document.title = "TechTent - Everyday Electronics";
+    }
+    return () => {
+      document.title = "TechTent - Everyday Electronics";
+    };
+  }, [order]);
+
   const renderStatusBadge = (status: OrderData["status"]) => {
     switch (status) {
       case "ACCEPTED":
@@ -140,9 +151,9 @@ export const OrderDetailPage: React.FC = () => {
   });
 
   return (
-    <div style={{ maxWidth: "840px", margin: "0 auto", padding: "28px 20px" }}>
+    <div className="receipt-page-container" style={{ maxWidth: "840px", margin: "0 auto", padding: "28px 20px" }}>
       {/* Top Navigation Breadcrumb */}
-      <div style={{ marginBottom: "20px" }}>
+      <div className="no-print" style={{ marginBottom: "20px" }}>
         <Link
           to="/orders"
           data-testid="back-to-orders-link"
@@ -162,7 +173,7 @@ export const OrderDetailPage: React.FC = () => {
 
       {/* Main Printable Receipt Card */}
       <div
-        className="tt-card"
+        className="tt-card tt-receipt-card"
         data-testid="order-receipt-card"
         style={{
           backgroundColor: "#FFFFFF",
@@ -369,8 +380,9 @@ export const OrderDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer Actions */}
+        {/* Footer Actions (Hidden on Print) */}
         <div
+          className="no-print"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -414,3 +426,4 @@ export const OrderDetailPage: React.FC = () => {
 };
 
 export default OrderDetailPage;
+
