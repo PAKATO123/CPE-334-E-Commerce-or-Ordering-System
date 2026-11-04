@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import { Product, CategoryFilter } from "../types/product";
 import { getProductsApi, getCategoriesApi } from "../api";
 import ProductCard from "../components/catalog/ProductCard";
@@ -15,6 +16,7 @@ interface ToastNotificationItem {
 
 export const CatalogPage: React.FC = () => {
   const { user } = useAuth();
+  const { addToCart, catalogVersion } = useCart();
   const navigate = useNavigate();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -51,6 +53,17 @@ export const CatalogPage: React.FC = () => {
 
   useEffect(() => {
     fetchCatalog();
+  }, [selectedCategory, catalogVersion]);
+
+  // Sync catalog when user returns to window / tab
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchCatalog();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [selectedCategory]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -79,6 +92,8 @@ export const CatalogPage: React.FC = () => {
       navigate("/login");
       return;
     }
+
+    addToCart(product, quantity);
 
     const toastId = Date.now() + Math.random();
     const newToast: ToastNotificationItem = {

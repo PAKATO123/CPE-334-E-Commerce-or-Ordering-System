@@ -132,3 +132,29 @@ export async function getCategoriesApi(): Promise<{ data: string[] }> {
   }
   return json;
 }
+
+// ---------------------------------------------------------------------------
+// Order Management API Calls (F-03, F-04)
+// ---------------------------------------------------------------------------
+
+import { OrderData, CreateOrderPayload } from "./types/order";
+
+export async function createOrderApi(payload: CreateOrderPayload): Promise<{ data: OrderData }> {
+  const res = await fetch(`${API_BASE_URL}/api/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to submit order.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    error.productId = json.error?.productId;
+    error.sku = json.error?.sku;
+    throw error;
+  }
+  return json;
+}

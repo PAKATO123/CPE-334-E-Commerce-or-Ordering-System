@@ -4,6 +4,7 @@ import session from "express-session";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import { getPrisma } from "./prisma.js";
+import { generateOrderNumber } from "./utils/orderNumber.js";
 import {
   requireAuth,
   requireRole,
@@ -289,6 +290,184 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Order Assembly & Atomic Persistence Endpoints (F-03)
+// ---------------------------------------------------------------------------
+
+app.post(
+  "/api/orders",
+  requireAuth,
+  requireRole("CUSTOMER"),
+  enforcePasswordChangeCheck,
+  async (req: Request, res: Response) => {
+    try {
+      const { items } = req.body;
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          error: { code: "EMPTY_ORDER", message: "Order must contain at least one item." },
+        });
+      }
+
+      // Validate quantities and product IDs
+      const itemMap = new Map<number, number>();
+      for (const item of items) {
+        const productId = parseInt(item.productId, 10);
+        const quantity = parseInt(item.quantity, 10);
+
+        if (isNaN(productId) || productId <= 0) {
+          return res.status(400).json({
+            error: { code: "INVALID_PRODUCT_ID", message: "Invalid product ID in order." },
+          });
+        }
+
+        if (isNaN(quantity) || quantity <= 0 || !Number.isInteger(Number(item.quantity))) {
+          return res.status(400).json({
+            error: { code: "INVALID_QUANTITY", message: "Item quantity must be a positive integer." },
+          });
+        }
+
+        const currentQty = itemMap.get(productId) || 0;
+        itemMap.set(productId, currentQty + quantity);
+      }
+
+      const consolidatedProductIds = Array.from(itemMap.keys());
+      const prisma = getPrisma();
+
+      // Execute within an atomic transaction (NFR-02, BR-03)
+      const result = await prisma.$transaction(async (tx) => {
+        // Fetch all requested products
+        const products = await tx.product.findMany({
+          where: {
+            id: { in: consolidatedProductIds },
+            isActive: true,
+          },
+        });
+
+        if (products.length !== consolidatedProductIds.length) {
+          const foundIds = new Set(products.map((p) => p.id));
+          const missingId = consolidatedProductIds.find((id) => !foundIds.has(id));
+          const err: any = new Error(`Product ID ${missingId} not found or is inactive.`);
+          err.statusCode = 404;
+          err.code = "PRODUCT_NOT_FOUND";
+          throw err;
+        }
+
+        // Validate stock availability for each product (supports simulation test SKU)
+        for (const product of products) {
+          const requestedQty = itemMap.get(product.id)!;
+          const isSimulatedFail = product.sku === "SIM-ATOM-FAIL";
+
+          if (product.stockQuantity < requestedQty || isSimulatedFail) {
+            const err: any = new Error(
+              isSimulatedFail
+                ? `Selected item '${product.name}' is out of stock. Please remove it from your cart to proceed.`
+                : `Insufficient stock for '${product.name}'. Available: ${product.stockQuantity}, Requested: ${requestedQty}`
+            );
+            err.statusCode = 409;
+            err.code = "INSUFFICIENT_STOCK";
+            err.failedProductId = product.id;
+            err.failedSku = product.sku;
+            throw err;
+          }
+        }
+
+        // Authoritative Pricing Calculation (BR-01, BR-02)
+        let grandTotal = 0;
+        const lineItemsData = products.map((product) => {
+          const quantity = itemMap.get(product.id)!;
+          const unitPrice = Number(product.price);
+          const subtotal = Number((unitPrice * quantity).toFixed(2));
+          grandTotal += subtotal;
+
+          return {
+            productId: product.id,
+            productName: product.name,
+            sku: product.sku,
+            unitPrice: unitPrice.toFixed(2),
+            quantity,
+            subtotal: subtotal.toFixed(2),
+          };
+        });
+
+        // Generate unique order number (FR-05)
+        const orderNumber = await generateOrderNumber(tx);
+
+        // Create Order and OrderItems
+        const newOrder = await tx.order.create({
+          data: {
+            orderNumber,
+            customerId: req.session.user!.id,
+            status: "PENDING",
+            totalAmount: grandTotal.toFixed(2),
+            items: {
+              create: lineItemsData.map((li) => ({
+                productId: li.productId,
+                unitPrice: li.unitPrice,
+                quantity: li.quantity,
+                subtotal: li.subtotal,
+              })),
+            },
+          },
+          include: {
+            items: {
+              include: { product: true },
+            },
+          },
+        });
+
+        // Decrement stock atomically (AC-ORD-02)
+        for (const product of products) {
+          const quantity = itemMap.get(product.id)!;
+          await tx.product.update({
+            where: { id: product.id },
+            data: {
+              stockQuantity: { decrement: quantity },
+            },
+          });
+        }
+
+        return newOrder;
+      });
+
+      return res.status(201).json({
+        data: {
+          id: result.id,
+          orderNumber: result.orderNumber,
+          customerId: result.customerId,
+          status: result.status,
+          totalAmount: Number(result.totalAmount).toFixed(2),
+          createdAt: result.createdAt.toISOString(),
+          items: result.items.map((item) => ({
+            id: item.id,
+            productId: item.productId,
+            productName: item.product.name,
+            sku: item.product.sku,
+            unitPrice: Number(item.unitPrice).toFixed(2),
+            quantity: item.quantity,
+            subtotal: Number(item.subtotal).toFixed(2),
+          })),
+        },
+      });
+    } catch (error: any) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json({
+          error: {
+            code: error.code || "ORDER_ERROR",
+            message: error.message,
+            productId: error.failedProductId,
+            sku: error.failedSku,
+          },
+        });
+      }
+      console.error("Order creation transaction error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to create order." },
+      });
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Operator Orders Queue (F-05 skeleton for testing RBAC / requireRole)

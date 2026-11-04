@@ -1,11 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import ChangePasswordModal from "./auth/ChangePasswordModal";
+import CartDrawer from "./cart/CartDrawer";
+import OrderConfirmationModal from "./cart/OrderConfirmationModal";
+import { OrderData } from "../types/order";
 
 export const AppShell: React.FC = () => {
   const { user, loading, logout } = useAuth();
+  const { totalItemCount, openCart } = useCart();
   const location = useLocation();
+
+  const [confirmedOrder, setConfirmedOrder] = useState<OrderData | null>(null);
 
   if (loading) {
     return (
@@ -21,6 +28,12 @@ export const AppShell: React.FC = () => {
   return (
     <div className="tt-shell">
       {user?.mustChangePassword && <ChangePasswordModal />}
+
+      {/* Cart Drawer for assembling and reviewing multi-item orders */}
+      <CartDrawer onOrderSuccess={(order) => setConfirmedOrder(order)} />
+
+      {/* Confirmation Modal when an order is placed */}
+      <OrderConfirmationModal order={confirmedOrder} onClose={() => setConfirmedOrder(null)} />
 
       <header className="tt-header">
         <div className="tt-header-inner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px", maxWidth: "1200px", margin: "0 auto" }}>
@@ -85,7 +98,45 @@ export const AppShell: React.FC = () => {
             </nav>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            {/* Customer Cart / Order Preview Button */}
+            {user && (
+              <button
+                type="button"
+                onClick={openCart}
+                className="tt-btn tt-header-btn-nav"
+                data-testid="header-cart-button"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  height: "36px",
+                  padding: "0 14px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                }}
+              >
+                <span>🛒</span>
+                <span>Order Preview</span>
+                {totalItemCount > 0 && (
+                  <span
+                    data-testid="cart-badge-count"
+                    style={{
+                      backgroundColor: "#FFFFFF",
+                      color: "#006B3C",
+                      borderRadius: "10px",
+                      padding: "1px 7px",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      marginLeft: "2px",
+                    }}
+                  >
+                    {totalItemCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             {user ? (
               <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
                 <span style={{ fontSize: "14px", color: "#FFFFFF" }}>
