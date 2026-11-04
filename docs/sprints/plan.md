@@ -4,7 +4,7 @@
 
 ### Team Information
 > **Fill in the student details below:**
-- **Student 1**: `[FILL IN: Student 1 Full Name — Student ID]`
+- **Student 1**: `Pattarapon Sribuathong 67070503434`
 - **Student 2**: `[FILL IN: Student 2 Full Name — Student ID]`
 - **Repository URL**: `https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System.git`
 - **Submitted Release Tag / Commit**: `[FILL IN: Release Tag / Commit SHA]`
