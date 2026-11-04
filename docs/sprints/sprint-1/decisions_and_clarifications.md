@@ -45,17 +45,18 @@ The following decisions have been reviewed, aligned, and confirmed for Sprint 1:
 - **Decision**: Human-readable, date-stamped identifier: `ORD-YYYYMMDD-XXXX` (e.g. `ORD-20261101-0001`).
 
 ### 1.6 Currency Representation
-- **Decision**: Stored as `Decimal(10, 2)` in PostgreSQL and displayed in Thai Baht (`฿` / THB) across all customer and operator views.
+- **Decision**: Stored as `Decimal(10, 2)` in PostgreSQL and displayed in US Dollars (`$` / USD) across all customer and operator views.
 
 ---
 
 ## 2. Seed Everyday Tech Catalog Lineup (Sprint 1)
 
-| SKU | Product Name | Category | Unit Price (THB) | Initial Stock | Role / Test Purpose |
+| SKU | Product Name | Category | Unit Price (USD) | Initial Stock | Role / Test Purpose |
 |---|---|---|---|---|---|
-| `PHON-PRO-256` | Flagship Pro Smartphone 256GB | Smartphones | ฿28,900.00 | 10 | High-value device; multi-quantity ordering test |
-| `TAB-ULTRA-11` | Ultra Tablet 11" 128GB | Tablets | ฿18,500.00 | 8 | Mid-range device; boundary quantity check |
-| `TV-SMART-55` | 55" 4K Smart OLED TV | Smart TVs | ฿22,900.00 | 5 | Heavy goods; operator accept/reject test |
-| `KB-MECH-RGB` | Wireless Mechanical Keyboard | Keyboards | ฿2,490.00 | 15 | Everyday accessory; cart combination test |
-| `CHG-GAN-65W` | 65W GaN Fast Charger USB-C | Chargers & Power | ฿890.00 | 25 | High-volume everyday essential; stock decrement test |
-| `PHON-FLIP-LTD`| Flip Smartphone Limited Edition | Smartphones | ฿34,900.00 | **0** | **Out-of-Stock Demo**: verifies UI disablement & backend 409 rejection |
+| `PHON-PRO-256` | Flagship Pro Smartphone 256GB | Smartphones | $899.00 | 10 | High-value device; multi-quantity ordering test |
+| `TAB-ULTRA-11` | Ultra Tablet 11" 128GB | Tablets | $549.00 | 8 | Mid-range device; boundary quantity check |
+| `TV-SMART-55` | 55" 4K Smart OLED TV | Smart TVs | $699.00 | 5 | Heavy goods; operator accept/reject test |
+| `KB-MECH-RGB` | Wireless Mechanical Keyboard | Keyboards | $79.00 | 15 | Everyday accessory; cart combination test |
+| `CHG-GAN-65W` | 65W GaN Fast Charger USB-C | Chargers & Power | $29.00 | 25 | High-volume everyday essential; stock decrement test |
+| `PHON-FLIP-LTD`| Flip Smartphone Limited Edition | Smartphones | $999.00 | **0** | **Out-of-Stock Demo**: verifies UI disablement & backend 409 rejection |
+| `DISCONT-OLD-GEN`| Discontinued 30-Pin Cable | Chargers & Power | $9.99 | 50 | **Inactive Demo (`isActive = false`)**: verifies AC-CAT-02 exclusion |

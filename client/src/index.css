@@ -13,10 +13,10 @@
   --color-border-input: #CBD5E0;
   --color-text-main: #1A2E22;
   --color-text-muted: #718096;
-  
+
   --color-editable-bg: #FFFFFF;
   --color-readonly-bg: #F0F4F1;
-  
+
   --color-error: #C53030;
   --color-error-bg: #FFF5F5;
   --color-warning: #D69E2E;
@@ -25,10 +25,10 @@
   --color-urgent-border: #FEB2B2;
   --color-info: #3182CE;
   --color-info-bg: #EBF8FF;
-  
+
   /* Typography */
   --font-family-base: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  
+
   /* Spacing Scale */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -36,7 +36,7 @@
   --space-lg: 24px;
   --space-xl: 32px;
   --space-xxl: 48px;
-  
+
   /* Radii & Shadows */
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -46,7 +46,9 @@
 }
 
 /* Base resets & typography */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -61,15 +63,32 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   color: var(--color-text-main);
   margin-top: 0;
   font-weight: 600;
 }
 
-h1 { font-size: 24px; line-height: 1.3; font-weight: 700; }
-h2 { font-size: 20px; line-height: 1.35; }
-h3 { font-size: 16px; line-height: 1.4; }
+h1 {
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+h3 {
+  font-size: 16px;
+  line-height: 1.4;
+}
 
 a {
   color: var(--color-secondary-green);
@@ -186,10 +205,12 @@ a:hover {
     flex-direction: column;
     align-items: flex-start;
   }
+
   .tt-header-right {
     width: 100%;
     justify-content: space-between;
   }
+
   .tt-main-container {
     padding: var(--space-md);
   }
@@ -457,7 +478,9 @@ a:hover {
 }
 
 @keyframes tt-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .tt-toast {
@@ -508,13 +531,25 @@ a:hover {
 }
 
 @keyframes tt-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes tt-slide-up {
-  from { transform: translateY(12px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .tt-btn-pill-primary {
@@ -559,3 +594,54 @@ a:hover {
   text-decoration: none !important;
 }
 
+
+/* Toast Notification Stack & Animations */
+.tt-toast-stack {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1500;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.tt-toast-item {
+  pointer-events: auto;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 380px;
+  width: 100%;
+  animation: tt-toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, box-shadow 0.3s ease;
+}
+
+.tt-toast-item-new {
+  background-color: var(--color-pale-green);
+  border: 2px solid var(--color-primary-green);
+  color: var(--color-text-main);
+  box-shadow: 0 8px 24px rgba(0, 107, 60, 0.22);
+}
+
+.tt-toast-item-old {
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E0;
+  color: #4A5568;
+  opacity: 0.92;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+@keyframes tt-toast-in {
+  0% {
+    transform: translateY(24px) scale(0.94);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}

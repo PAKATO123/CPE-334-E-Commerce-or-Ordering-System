@@ -30,7 +30,7 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
 ### 1.3 Scope of the Product
 - **In-Scope (Full Lifecycle)**:
   - User identity and role-based authentication (`CUSTOMER`, `OPERATOR`, `ADMIN`).
-  - Active product catalog with categorical grouping (Smartphones, Tablets, TVs, Keyboards, Chargers), descriptions, authoritative prices (THB), and real-time inventory levels.
+  - Active product catalog with categorical grouping (Smartphones, Tablets, TVs, Keyboards, Chargers), descriptions, authoritative prices (USD), and real-time inventory levels.
   - Multi-item shopping cart and order placement with atomic transactional stock reservation.
   - Itemized customer order history and receipt retrieval.
   - Dedicated operator order management queue with one-click status transitions.
@@ -56,7 +56,7 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
 ## 3. Functional Requirements (FR)
 
 ### 3.1 Catalog & Product Browsing
-- **FR-01 (Product Catalog Listing)**: The system shall provide an endpoint and UI view to list all active electronic products, displaying SKU, name, category, description, unit price (THB), and stock quantity.
+- **FR-01 (Product Catalog Listing)**: The system shall provide an endpoint and UI view to list all active electronic products, displaying SKU, name, category, description, unit price (USD), and stock quantity.
 - **FR-02 (Catalog Real-time Availability)**: The system shall reflect immediate stock availability, visibly marking items with zero stock as "Out of Stock" and disabling addition to order.
 
 ### 3.2 Order Assembly & Submission
@@ -118,4 +118,4 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
 
 1. **Local Authentication & Seed Users**: Sprint 1 uses seeded demo accounts for grading (`customer1@example.com`, `operator1@example.com`, `admin@example.com`) to allow instant evaluation without external email or SMS dependencies.
 2. **Immediate Stock Reservation**: Stock is decremented immediately upon order placement in `PENDING` state. If an operator rejects the order, stock is restored. This guarantees that an order cannot be placed if stock is depleted.
-3. **Currency & Precision**: All financial amounts are stored as `Decimal(10, 2)` in PostgreSQL and presented in Thai Baht (`฿`) or standard decimal currency to prevent floating-point rounding inaccuracies.
+3. **Currency & Precision**: All financial amounts are stored as `Decimal(10, 2)` in PostgreSQL and presented in US Dollars (`$`) formatted to two decimal places to prevent floating-point rounding inaccuracies.

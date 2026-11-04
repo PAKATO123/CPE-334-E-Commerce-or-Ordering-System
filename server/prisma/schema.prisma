@@ -29,4 +29,61 @@ model User {
   mustChangePassword Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  orders             Order[]
+}
+
+// ---------------------------------------------------------------------------
+// Product Catalog & Inventory
+// ---------------------------------------------------------------------------
+
+model Product {
+  id            Int         @id @default(autoincrement())
+  sku           String      @unique
+  name          String
+  category      String
+  description   String?
+  price         Decimal     @db.Decimal(10, 2)
+  stockQuantity Int         @default(0)
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  orderItems    OrderItem[]
+
+  @@index([category, isActive])
+}
+
+// ---------------------------------------------------------------------------
+// Orders & Line Items
+// ---------------------------------------------------------------------------
+
+model Order {
+  id          Int         @id @default(autoincrement())
+  orderNumber String      @unique
+  customerId  Int
+  customer    User        @relation(fields: [customerId], references: [id])
+  status      String      @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  totalAmount Decimal     @db.Decimal(10, 2)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  items       OrderItem[]
+
+  @@index([customerId, status])
+  @@index([status, createdAt])
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id])
+  unitPrice Decimal  @db.Decimal(10, 2) // Preserved purchase-time unit price
+  quantity  Int
+  subtotal  Decimal  @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@index([productId])
 }

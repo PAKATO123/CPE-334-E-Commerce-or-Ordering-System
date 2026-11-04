@@ -1,10 +1,11 @@
 import React from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ChangePasswordModal from "./auth/ChangePasswordModal";
 
 export const AppShell: React.FC = () => {
   const { user, loading, logout } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -15,6 +16,7 @@ export const AppShell: React.FC = () => {
   }
 
   const isOperator = user?.role === "OPERATOR" || user?.role === "ADMIN";
+  const isLoginPage = location.pathname === "/login";
 
   return (
     <div className="tt-shell">
@@ -98,7 +100,7 @@ export const AppShell: React.FC = () => {
                   Sign Out
                 </button>
               </div>
-            ) : (
+            ) : !isLoginPage ? (
               <Link
                 to="/login"
                 className="tt-btn tt-header-btn-nav"
@@ -106,7 +108,7 @@ export const AppShell: React.FC = () => {
               >
                 Sign In
               </Link>
-            )}
+            ) : null}
           </div>
         </div>
       </header>
