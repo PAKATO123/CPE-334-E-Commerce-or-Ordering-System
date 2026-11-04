@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import { getPrisma } from "./prisma.js";
 import { generateOrderNumber } from "./utils/orderNumber.js";
+import { isOperatorOrderStatus, listOperatorOrders } from "./services/operatorOrders.js";
 import {
   requireAuth,
   requireRole,
@@ -609,11 +610,35 @@ app.get(
 );
 
 // ---------------------------------------------------------------------------
-// Operator Orders Queue (F-05 skeleton for testing RBAC / requireRole)
+// Operator Orders Queue (F-05)
 // ---------------------------------------------------------------------------
-app.get("/api/operator/orders", requireAuth, requireRole("OPERATOR", "ADMIN"), (_req: Request, res: Response) => {
-  return res.status(200).json({ data: [] });
-});
+app.get(
+  "/api/operator/orders",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    const { status } = req.query;
+    if (status !== undefined && !isOperatorOrderStatus(status)) {
+      return res.status(400).json({
+        error: {
+          code: "INVALID_STATUS",
+          message: "Status must be PENDING, ACCEPTED, or REJECTED. Omit status to list all orders.",
+        },
+      });
+    }
+
+    try {
+      const data = await listOperatorOrders(getPrisma(), status);
+      return res.status(200).json({ data });
+    } catch (error) {
+      console.error("Fetch operator orders error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to fetch operator orders." },
+      });
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // 404 Handler
