@@ -470,6 +470,145 @@ app.post(
 );
 
 // ---------------------------------------------------------------------------
+// Customer Order History & Receipt Details (F-04)
+// ---------------------------------------------------------------------------
+
+// GET /api/orders - List customer's chronological orders (AC-ORD-04)
+app.get(
+  "/api/orders",
+  requireAuth,
+  requireRole("CUSTOMER"),
+  enforcePasswordChangeCheck,
+  async (req: Request, res: Response) => {
+    try {
+      const prisma = getPrisma();
+      const customerId = req.session.user!.id;
+
+      const orders = await prisma.order.findMany({
+        where: { customerId },
+        orderBy: { createdAt: "desc" },
+        include: {
+          items: {
+            include: { product: true },
+          },
+        },
+      });
+
+      const formatted = orders.map((order) => {
+        const totalItemsCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+        return {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          customerId: order.customerId,
+          status: order.status,
+          totalAmount: Number(order.totalAmount).toFixed(2),
+          itemCount: totalItemsCount,
+          lineItemCount: order.items.length,
+          createdAt: order.createdAt.toISOString(),
+          updatedAt: order.updatedAt.toISOString(),
+          items: order.items.map((item) => ({
+            id: item.id,
+            productId: item.productId,
+            productName: item.product.name,
+            sku: item.product.sku,
+            unitPrice: Number(item.unitPrice).toFixed(2),
+            quantity: item.quantity,
+            subtotal: Number(item.subtotal).toFixed(2),
+          })),
+        };
+      });
+
+      return res.status(200).json({ data: formatted });
+    } catch (error) {
+      console.error("Fetch orders error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to fetch orders." },
+      });
+    }
+  }
+);
+
+// GET /api/orders/:id - Customer order receipt detail with historic price preservation (AC-ORD-05, AC-SEC-01)
+app.get(
+  "/api/orders/:id",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: { code: "INVALID_ID", message: "Order ID must be an integer." },
+        });
+      }
+
+      const prisma = getPrisma();
+      const order = await prisma.order.findUnique({
+        where: { id },
+        include: {
+          customer: {
+            select: { id: true, name: true, email: true },
+          },
+          items: {
+            include: { product: true },
+          },
+        },
+      });
+
+      if (!order) {
+        return res.status(404).json({
+          error: { code: "ORDER_NOT_FOUND", message: "Order not found." },
+        });
+      }
+
+      // Cross-customer data isolation: Customers can only view their own orders
+      const user = req.session.user!;
+      if (user.role === "CUSTOMER" && order.customerId !== user.id) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Order not found or permission denied.",
+          },
+        });
+      }
+
+      const totalItemsCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+      return res.status(200).json({
+        data: {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          customerId: order.customerId,
+          customerName: order.customer.name,
+          customerEmail: order.customer.email,
+          status: order.status,
+          totalAmount: Number(order.totalAmount).toFixed(2),
+          itemCount: totalItemsCount,
+          lineItemCount: order.items.length,
+          createdAt: order.createdAt.toISOString(),
+          updatedAt: order.updatedAt.toISOString(),
+          items: order.items.map((item) => ({
+            id: item.id,
+            productId: item.productId,
+            productName: item.product.name,
+            sku: item.product.sku,
+            unitPrice: Number(item.unitPrice).toFixed(2), // Authoritative historical preserved unit price
+            quantity: item.quantity,
+            subtotal: Number(item.subtotal).toFixed(2),
+          })),
+        },
+      });
+    } catch (error) {
+      console.error("Fetch order detail error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to fetch order detail." },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
 // Operator Orders Queue (F-05 skeleton for testing RBAC / requireRole)
 // ---------------------------------------------------------------------------
 app.get("/api/operator/orders", requireAuth, requireRole("OPERATOR", "ADMIN"), (_req: Request, res: Response) => {

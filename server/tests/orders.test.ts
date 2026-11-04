@@ -17,6 +17,15 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
     return agent;
   }
 
+  async function loginAsCustomer2() {
+    const agent = request.agent(app);
+    const loginRes = await agent
+      .post("/api/auth/login")
+      .send({ email: "customer2@example.com", password: "Password123!" });
+    expect(loginRes.status).toBe(200);
+    return agent;
+  }
+
   async function loginAsOperator() {
     const agent = request.agent(app);
     const loginRes = await agent
@@ -347,6 +356,157 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
     });
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe("FORBIDDEN");
+  });
+
+  // -------------------------------------------------------------------------
+  // 7. Customer Order History & Receipt Details (F-04)
+  // -------------------------------------------------------------------------
+
+  describe("Feature 4: Customer Order History & Receipt Details (F-04)", () => {
+    it("TEST-ORD-04: customer queries GET /api/orders and receives only their own orders (isolation)", async () => {
+      const customer1 = await loginAsCustomer();
+      const customer2 = await loginAsCustomer2();
+
+      const phone = await prisma.product.findUniqueOrThrow({ where: { sku: "PHON-PRO-256" } });
+      const kb = await prisma.product.findUniqueOrThrow({ where: { sku: "KB-MECH-RGB" } });
+
+      // Clean test orders before this specific test
+      await prisma.orderItem.deleteMany({});
+      await prisma.order.deleteMany({});
+
+      // Customer 1 places 2 orders
+      const order1Res = await customer1.post("/api/orders").send({
+        items: [{ productId: phone.id, quantity: 1 }],
+      });
+      expect(order1Res.status).toBe(201);
+
+      const order2Res = await customer1.post("/api/orders").send({
+        items: [{ productId: kb.id, quantity: 1 }],
+      });
+      expect(order2Res.status).toBe(201);
+
+      // Customer 2 places 1 order
+      const order3Res = await customer2.post("/api/orders").send({
+        items: [{ productId: phone.id, quantity: 1 }],
+      });
+      expect(order3Res.status).toBe(201);
+
+      // Customer 1 fetches their order history
+      const res1 = await customer1.get("/api/orders");
+      expect(res1.status).toBe(200);
+      expect(Array.isArray(res1.body.data)).toBe(true);
+      expect(res1.body.data.length).toBe(2);
+
+      // Ensure every order returned belongs to Customer 1 (ID matches)
+      const user1 = await prisma.user.findUniqueOrThrow({ where: { email: "customer1@example.com" } });
+      res1.body.data.forEach((o: any) => {
+        expect(o.customerId).toBe(user1.id);
+      });
+
+      // Customer 2 fetches their order history
+      const res2 = await customer2.get("/api/orders");
+      expect(res2.status).toBe(200);
+      expect(res2.body.data.length).toBe(1);
+      const user2 = await prisma.user.findUniqueOrThrow({ where: { email: "customer2@example.com" } });
+      expect(res2.body.data[0].customerId).toBe(user2.id);
+    });
+
+    it("TEST-ORD-05: GET /api/orders/:id preserves historical purchase-time unit prices even if catalog prices change", async () => {
+      const customer = await loginAsCustomer();
+      const phone = await prisma.product.findUniqueOrThrow({ where: { sku: "PHON-PRO-256" } });
+
+      // 1. Order placed when price is $899.00
+      const orderRes = await customer.post("/api/orders").send({
+        items: [{ productId: phone.id, quantity: 1 }],
+      });
+      expect(orderRes.status).toBe(201);
+      const orderId = orderRes.body.data.id;
+
+      // 2. Later, catalog price updates to $950.00
+      await prisma.product.update({
+        where: { id: phone.id },
+        data: { price: 950.00 },
+      });
+
+      // 3. Customer retrieves order receipt
+      const receiptRes = await customer.get(`/api/orders/${orderId}`);
+      expect(receiptRes.status).toBe(200);
+      expect(receiptRes.body.data.id).toBe(orderId);
+      expect(receiptRes.body.data.totalAmount).toBe("899.00");
+
+      const item = receiptRes.body.data.items[0];
+      expect(item.unitPrice).toBe("899.00"); // Must stay 899.00, NOT 950.00!
+      expect(item.subtotal).toBe("899.00");
+    });
+
+    it("TEST-SEC-01: customer cannot view another customer's order receipt (403 Forbidden)", async () => {
+      const customer1 = await loginAsCustomer();
+      const customer2 = await loginAsCustomer2();
+
+      const phone = await prisma.product.findUniqueOrThrow({ where: { sku: "PHON-PRO-256" } });
+
+      // Customer 2 creates an order
+      const orderRes = await customer2.post("/api/orders").send({
+        items: [{ productId: phone.id, quantity: 1 }],
+      });
+      expect(orderRes.status).toBe(201);
+      const customer2OrderId = orderRes.body.data.id;
+
+      // Customer 1 tries to access Customer 2's order
+      const hackRes = await customer1.get(`/api/orders/${customer2OrderId}`);
+      expect(hackRes.status).toBe(403);
+      expect(hackRes.body.error.code).toBe("FORBIDDEN");
+      expect(hackRes.body.data).toBeUndefined();
+    });
+
+    it("operator or admin can access any customer's order receipt", async () => {
+      const customer = await loginAsCustomer();
+      const operator = await loginAsOperator();
+
+      const kb = await prisma.product.findUniqueOrThrow({ where: { sku: "KB-MECH-RGB" } });
+      const orderRes = await customer.post("/api/orders").send({
+        items: [{ productId: kb.id, quantity: 2 }],
+      });
+      expect(orderRes.status).toBe(201);
+      const orderId = orderRes.body.data.id;
+
+      // Operator fetches receipt
+      const res = await operator.get(`/api/orders/${orderId}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.id).toBe(orderId);
+      expect(res.body.data.customerEmail).toBe("customer1@example.com");
+      expect(res.body.data.items.length).toBe(1);
+    });
+
+    it("returns 404 Not Found when order ID does not exist", async () => {
+      const customer = await loginAsCustomer();
+
+      const res = await customer.get("/api/orders/999999");
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe("ORDER_NOT_FOUND");
+    });
+
+    it("returns 400 Bad Request when order ID is not an integer", async () => {
+      const customer = await loginAsCustomer();
+
+      const res = await customer.get("/api/orders/abc");
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe("INVALID_ID");
+    });
+
+    it("rejects unauthenticated GET /api/orders with 401 Unauthorized", async () => {
+      const res = await request(app).get("/api/orders");
+      expect(res.status).toBe(401);
+      expect(res.body.error.code).toBe("UNAUTHORIZED");
+    });
+
+    it("rejects non-customer roles (OPERATOR) for GET /api/orders with 403 Forbidden", async () => {
+      const operator = await loginAsOperator();
+
+      const res = await operator.get("/api/orders");
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe("FORBIDDEN");
+    });
   });
 });
 

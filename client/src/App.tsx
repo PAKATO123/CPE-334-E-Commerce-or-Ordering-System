@@ -6,6 +6,7 @@ import AppShell from "./components/AppShell";
 import RoleGuard from "./components/RoleGuard";
 import CatalogPage from "./pages/CatalogPage";
 import OrderHistoryPage from "./pages/OrderHistoryPage";
+import OrderDetailPage from "./pages/OrderDetailPage";
 import OperatorOrdersPage from "./pages/OperatorOrdersPage";
 import LoginPage from "./pages/LoginPage";
 
@@ -19,6 +20,7 @@ export function AppRoutes() {
         {/* Customer Protected Routes */}
         <Route element={<RoleGuard />}>
           <Route path="orders" element={<OrderHistoryPage />} />
+          <Route path="orders/:id" element={<OrderDetailPage />} />
         </Route>
 
         {/* Operator Protected Routes */}

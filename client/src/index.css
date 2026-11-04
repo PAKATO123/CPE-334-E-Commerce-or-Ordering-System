@@ -1,5 +1,5 @@
 /* ==========================================================================
-   TokTickIT — Zen Green Visual Design System (Lab 02)
+   TechTent — Zen Green Visual Design System (Lab 02)
    ========================================================================== */
 
 :root {
@@ -643,5 +643,84 @@ a:hover {
   100% {
     transform: translateY(0) scale(1);
     opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   Print Stylesheet
+   Only print the official receipt content, hiding all application headers,
+   toolbars, navigation bars, buttons, and drawer overlays.
+   ========================================================================== */
+@media print {
+  /* Hide all interactive, navigation, and application shell elements */
+  header,
+  header.tt-header,
+  .tt-header,
+  .tt-nav,
+  .tt-header-btn-nav,
+  .tt-btn-signout,
+  .tt-toast-stack,
+  .tt-drawer,
+  .no-print,
+  button,
+  .tt-btn,
+  a[href]:after {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Reset body and container for pure paper receipt layout */
+  body,
+  html,
+  #root,
+  .tt-shell {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
+  }
+
+  .receipt-page-container {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Target the official receipt card */
+  .tt-receipt-card {
+    border: 1px solid #CBD5E0 !important;
+    box-shadow: none !important;
+    padding: 24px !important;
+    border-radius: 4px !important;
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .tt-receipt-card table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .tt-receipt-card th,
+  .tt-receipt-card td {
+    border-color: #E2E8F0 !important;
+    color: #000000 !important;
+  }
+
+  /* Keep backgrounds and text sharp and accurate */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 12mm 15mm;
   }
 }
