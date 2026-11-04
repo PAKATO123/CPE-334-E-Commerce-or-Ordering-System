@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { getOrderByIdApi } from "../api";
 import { OrderData } from "../types/order";
 import { formatUSD } from "../utils/currency";
 
-export const OrderDetailPage: React.FC = () => {
+export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operatorView = false }) => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const queueSearch = location.state?.operatorQueueSearch;
+  const returnPath = operatorView
+    ? `/operator/orders${typeof queueSearch === "string" && queueSearch.startsWith("?") ? queueSearch : ""}`
+    : "/orders";
+  const returnLabel = operatorView ? "Operator Queue" : "My Orders";
 
   useEffect(() => {
     if (!id) return;
@@ -130,11 +136,11 @@ export const OrderDetailPage: React.FC = () => {
             {error || "Order not found or permission denied."}
           </p>
           <Link
-            to="/orders"
+            to={returnPath}
             className="tt-btn tt-btn-primary"
             style={{ textDecoration: "none", padding: "10px 24px" }}
           >
-            ← Return to My Orders
+            ← Return to {returnLabel}
           </Link>
         </div>
       </div>
@@ -155,7 +161,7 @@ export const OrderDetailPage: React.FC = () => {
       {/* Top Navigation Breadcrumb */}
       <div className="no-print" style={{ marginBottom: "20px" }}>
         <Link
-          to="/orders"
+          to={returnPath}
           data-testid="back-to-orders-link"
           style={{
             textDecoration: "none",
@@ -167,7 +173,7 @@ export const OrderDetailPage: React.FC = () => {
             gap: "6px",
           }}
         >
-          ← Back to Order History
+          ← Back to {operatorView ? "Operator Queue" : "Order History"}
         </Link>
       </div>
 
@@ -405,11 +411,11 @@ export const OrderDetailPage: React.FC = () => {
           <div style={{ display: "flex", gap: "10px" }}>
             <button
               type="button"
-              onClick={() => navigate("/orders")}
+              onClick={() => navigate(returnPath)}
               className="tt-btn"
               style={{ padding: "8px 18px", fontSize: "13px", fontWeight: 600 }}
             >
-              My Orders
+              {returnLabel}
             </button>
             <Link
               to="/"
