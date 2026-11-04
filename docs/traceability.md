@@ -36,7 +36,7 @@ This matrix establishes bidirectional traceability between system requirements (
 | **BR-03** | Stock availability & positive quantity validation | F-03 Order Assembly | Sprint 1 | AC-BR-03, AC-BR-04 | TEST-BR-03, TEST-BR-04 |
 | **BR-04** | Customer order data isolation (prevent cross-access) | F-04 Order Details | Sprint 1 | AC-SEC-01 | TEST-SEC-01 (API) |
 | **BR-05** | Operator endpoint role authorization (`403 Forbidden`) | F-05 Operator Queue | Sprint 1 | AC-SEC-02 | TEST-SEC-02 (API) |
-| **BR-06** | Order status transition validation | F-05 Operator Queue | Sprint 1 | AC-BR-05 | TEST-BR-05 (API) |
+| **BR-06** | Order status transition validation | F-05 Operator Queue | Sprint 1 | AC-OP-02, AC-OP-03 | TEST-BR-05 (API); F-05 concurrency/rollback cases |
 | **NFR-01**| Session auth, password hashing & route protection | F-01 Authentication | Sprint 1 | AC-AUTH-01, AC-AUTH-02 | TEST-AUTH-01, TEST-AUTH-02 |
 | **NFR-02**| Atomic transaction integrity & DB constraints | F-03 Order Assembly | Sprint 1 | AC-NFR-01 | TEST-NFR-01 (DB Integration) |
 | **NFR-03**| API response time < 200ms under local conditions | All Features | Sprint 1 | AC-NFR-02 | TEST-NFR-02 (Performance) |
@@ -46,3 +46,20 @@ This matrix establishes bidirectional traceability between system requirements (
 | **FR-12** | Customer order cancellation and stock release | F-07 Cancellation | Sprint 2 | Deferred to Sprint 2 | Deferred to Sprint 2 |
 | **FR-13** | Simulated payment status state transitions | F-08 Payment States | Sprint 2 | Deferred to Sprint 2 | Deferred to Sprint 2 |
 | **FR-14** | Sales summary and fulfillment turnaround reports | F-09 Sales Reports | Sprint 3 | Deferred to Sprint 3 | Deferred to Sprint 3 |
+
+## 3. Feature 5 implementation-to-test evidence
+
+| Requirement / AC | Implementation | Executable evidence | Verification |
+|---|---|---|---|
+| FR-08 / AC-OP-01 | `server/src/services/operatorOrders.ts`: `listOperatorOrders`; `client/src/pages/OperatorOrdersPage.tsx` | `server/tests/operator-orders.test.ts`: queue summaries/newest-first and filter cases; `client/tests/operator.test.tsx`: rendering/filter cases | PASS |
+| FR-09 / AC-OP-02 | `processOperatorOrder`: conditional acceptance without inventory operations | Operator/admin acceptance cases and terminal-transition cases in `server/tests/operator-orders.test.ts` | PASS |
+| FR-10 / AC-OP-03 | `processOperatorOrder`: transactional rejection and per-item stock increments | Operator/admin rejection, inactive-product restoration, repeated rejection, real concurrent requests and post-write rollback cases | PASS |
+| BR-05 / AC-SEC-02 | GET/PATCH middleware in `server/src/app.ts`; route guards in `client/src/App.tsx` | Both endpoint authorization cases in `server/tests/operator-orders.test.ts`; `client/tests/operator-access.test.tsx` | PASS |
+| BR-06 | Conditional update from `PENDING`, affected-row check, terminal conflict responses | Terminal matrix, invalid target, competing reject/reject, accept/reject and accept/accept cases | PASS |
+| BR-02 / BR-04 regression | Existing receipt endpoint and role-aware receipt navigation | `F-01 through F-05 integration` cases; `client/tests/operator.test.tsx`: receipt round trip | PASS |
+| NFR-02 for fulfillment | One Prisma transaction for the claim and stock restoration | Actual PostgreSQL rollback after the first stock write; stock/status/timestamp assertions | PASS for F-05; does not close inherited checkout concurrency findings |
+| NFR-04 | Responsive queue CSS and native rejection dialog | Component tests verify labels, initial/cancel focus and controls | PARTIAL: browser visual layout and native focus trapping not manually verified |
+
+See [the test environment and results](sprints/sprint-1/f05-test-environment.md)
+and [integration review](sprints/sprint-1/f05-integration-review.md). Test titles,
+rather than newly invented acceptance IDs, identify the additional F-05 cases.

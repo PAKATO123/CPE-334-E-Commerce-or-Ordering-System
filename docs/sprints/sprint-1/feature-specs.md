@@ -232,8 +232,8 @@
         "id": 42,
         "orderNumber": "ORD-20261101-0001",
         "status": "PENDING",
-        "totalAmount": "33880.00",
-        "itemCount": 2,
+        "totalAmount": "1057.00",
+        "itemCount": 3,
         "createdAt": "2026-11-01T15:30:00.000Z"
       }
     ]
@@ -273,8 +273,10 @@
 
 #### GET /api/operator/orders
 - **Access**: Authenticated `OPERATOR` or `ADMIN` (Customers rejected with `403 Forbidden`).
-- **Query Parameters**: `?status=PENDING` (optional).
-- **Success Response (`200 OK`)**: Returns array of all matching orders with customer metadata.
+- **Query Parameters**: Optional `status=PENDING`, `status=ACCEPTED`, or `status=REJECTED`. Omission returns all orders. Empty, repeated, structured, lowercase, or unsupported values return `400 INVALID_STATUS`.
+- **Success Response (`200 OK`)**: `{ "data": [...] }`, newest placement first, then descending ID for timestamp ties.
+- **Queue Entry**: `id`, `orderNumber`, `customerId`, `customerName`, `customerEmail`, `status`, `totalAmount`, `itemCount` (sum of quantities), `lineItemCount`, `createdAt`, `updatedAt`, and item summaries (`id`, `productId`, `productName`, `sku`, stored `unitPrice`, `quantity`, stored `subtotal`). Money is a two-decimal USD string; timestamps are ISO strings. No password hashes or session data are returned.
+- **Authorization**: Anonymous requests return `401 UNAUTHORIZED`; customers return `403 FORBIDDEN`. Account state and password policy are refreshed/enforced before the operator/admin role check. Mandatory password changes return `403 PASSWORD_CHANGE_REQUIRED`.
 
 #### PATCH /api/operator/orders/:id/status
 - **Access**: Authenticated `OPERATOR` or `ADMIN`
@@ -296,12 +298,29 @@
   }
   ```
 - **Error Responses**:
-  - `400 Bad Request`: Invalid target status (e.g., trying to set status to `PENDING`).
-  - `403 Forbidden`: Non-operator calling the endpoint.
-  - `409 Conflict`: Attempting to transition an already `ACCEPTED` or `REJECTED` order.
+  - `400 INVALID_ID`: ID is not a canonical positive decimal integer in PostgreSQL's signed 32-bit range (1 through 2147483647).
+  - `400 INVALID_STATUS`: Missing or invalid target; only `ACCEPTED` and `REJECTED` are accepted. `PENDING` is invalid regardless of current state.
+  - `401 UNAUTHORIZED`: No active session.
+  - `403 FORBIDDEN`: Non-operator role; inactive accounts receive `401 ACCOUNT_DEACTIVATED` and password-policy restrictions receive `403 PASSWORD_CHANGE_REQUIRED`.
+  - `404 ORDER_NOT_FOUND`: Valid ID with no matching order.
+  - `409 ORDER_ALREADY_PROCESSED`: Valid terminal target applied to an already `ACCEPTED` or `REJECTED` order.
+  - `409 ORDER_PROCESSING_CONFLICT`: Three attempts exhausted after Prisma transaction write-conflict/deadlock errors; refresh before retrying.
+  - `500 INTERNAL_ERROR`: Unexpected persistence failure; internal details are not returned.
+
+#### Fulfillment Transaction and UI Behavior
+
+- A conditional `PENDING` update claims the order inside a `ReadCommitted` Prisma transaction; exactly one affected row is required before inventory changes.
+- Acceptance changes only order status/timestamp. Checkout has already reserved stock.
+- Rejection increments stock by each stored item quantity, including inactive products, in stable product-ID order. Status and all increments commit or roll back together.
+- Competing/repeated terminal requests cannot restore stock twice. Only aborted `P2034` transactions are retried, with a bounded three-attempt budget.
+- The frontend preserves its selected filter through refresh and receipt navigation, disables processing controls while a request is pending, and distinguishes processing success from subsequent refresh failure.
+- Rejection uses a named native modal dialog with initial cancel focus, Escape cancellation while idle, and focus restoration. Browser-native focus trapping still needs manual verification.
+- A `409` triggers queue refresh and conflict feedback. Operators/admins return from receipts to their queue, while customers retain their own history navigation.
 
 ### 5.4 Acceptance Criteria (F-05)
 - **AC-OP-01**: Operator queue lists incoming orders with customer details and item summaries.
 - **AC-OP-02**: Operator can accept a `PENDING` order, changing status to `ACCEPTED`.
 - **AC-OP-03**: Operator rejecting a `PENDING` order transitions status to `REJECTED` and atomically restores product stock in the database.
 - **AC-SEC-02**: Customer role attempting to call `GET /api/operator/orders` or `PATCH /api/operator/orders/:id/status` is blocked with `403 Forbidden`.
+
+All four criteria have passing automated implementation evidence; see the [integration review](f05-integration-review.md) for test mapping and verification limits.

@@ -102,28 +102,57 @@ npm run dev
 
 ## 5. Seed Catalog Products (Everyday Tech)
 
-| SKU | Product Name | Category | Unit Price (THB) | Initial Stock |
+| SKU | Product Name | Category | Unit Price (USD) | Initial Stock |
 |---|---|---|---|---|
-| `PHON-PRO-256` | Flagship Pro Smartphone 256GB | Smartphones | ฿28,900.00 | 10 |
-| `TAB-ULTRA-11` | Ultra Tablet 11" 128GB | Tablets | ฿18,500.00 | 8 |
-| `TV-SMART-55` | 55" 4K Smart OLED TV | Smart TVs | ฿22,900.00 | 5 |
-| `KB-MECH-RGB` | Wireless Mechanical Keyboard | Keyboards | ฿2,490.00 | 15 |
-| `CHG-GAN-65W` | 65W GaN Fast Charger USB-C | Chargers & Power | ฿890.00 | 25 |
-| `PHON-FLIP-LTD`| Flip Smartphone Limited Edition | Smartphones | ฿34,900.00 | **0 (Out of Stock Demo)** |
+| `PHON-PRO-256` | Flagship Pro Smartphone 256GB | Smartphones | $899.00 | 10 |
+| `TAB-ULTRA-11` | Ultra Tablet 11" 128GB | Tablets | $549.00 | 8 |
+| `TV-SMART-55` | 55" 4K Smart OLED TV | Smart TVs | $699.00 | 5 |
+| `KB-MECH-RGB` | Wireless Mechanical Keyboard | Keyboards | $79.00 | 15 |
+| `CHG-GAN-65W` | 65W GaN Fast Charger USB-C | Chargers & Power | $29.00 | 25 |
+| `PHON-FLIP-LTD`| Flip Smartphone Limited Edition | Smartphones | $999.00 | **0 (Out of Stock Demo)** |
+
+The seed also includes an inactive product and the active `SIM-ATOM-FAIL` demonstration
+product, which deliberately rejects checkout despite displaying stock. This inherited
+demonstration behavior is recorded as an outstanding issue in the integration review.
 
 ---
 
 ## 6. Automated Tests
 
-```bash
-# Run server test suite
-cd server
-npm test
+Run these database-free checks from the repository root:
 
-# Run client test suite
-cd client
-npm test
-
-# Run Playwright E2E tests
-npm run test:e2e
+```powershell
+npm.cmd --prefix server run test:unit
+npm.cmd --prefix client test
+npm.cmd --prefix server run build
+npm.cmd --prefix client run build
 ```
+
+Backend integration tests reset data, and some legacy tests delete all orders.
+They are disabled unless an explicitly configured disposable database is approved.
+Follow [the isolated test environment instructions](docs/sprints/sprint-1/f05-test-environment.md)
+for the dedicated `127.0.0.1:55435/techtent_test` container. Never use the development
+database for these suites. Test setup does not automatically initialize or seed it.
+
+Verified results: **93 backend integration/regression tests, 48 backend unit tests,
+and 41 frontend tests passed (182 distinct tests; zero failed or skipped)**.
+Both builds passed. The separate 47-test Feature 5 run is included in the 93,
+not an additional set of tests. Browser E2E and visual checks have not been run.
+
+## 7. Operator Fulfillment (Feature 5)
+
+Sign in as an operator or administrator and open `/operator/orders`:
+
+- Filter all orders, pending orders, accepted orders or rejected orders.
+- Open customer receipts and return to the selected queue filter.
+- Accept a pending order without changing stock already reserved at checkout.
+- Confirm rejection to restore its reserved quantities atomically and exactly once.
+- Already processed orders return a conflict and cannot change terminal status.
+
+Queue retrieval and updates require operator/admin authorization and current
+password-policy enforcement. See [the API contract](docs/sprints/sprint-1/feature-specs.md#53-api-endpoint-specifications)
+and [the integration review](docs/sprints/sprint-1/f05-integration-review.md).
+
+Feature 5's concurrency tests verify fulfillment, not concurrent customer checkout.
+The inherited checkout stock/reference races and remaining browser verification
+are documented in that review; passing these suites does not establish production readiness.

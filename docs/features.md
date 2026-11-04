@@ -50,6 +50,9 @@ The product backlog is planned across three engineering sprints. Sprint 1 implem
 - **Linked Requirements**: FR-08, FR-09, FR-10, BR-05, BR-06
 - **Dependencies**: F-01, F-03
 - **Planned Sprint**: Sprint 1
+- **Implementation**: Queue retrieval and filters, operator/admin receipt navigation, conditional terminal transitions, transactional stock restoration, and rejection confirmation are implemented on `F-05/OperatorOrderProcessing`.
+- **Verification**: All four F-05 acceptance criteria have passing automated evidence. Real PostgreSQL competition and rollback checks passed. Browser visual/native-dialog keyboard checks remain outstanding; this branch has not been merged or published.
+- **Evidence**: [Integration review](sprints/sprint-1/f05-integration-review.md) and [safe test setup/results](sprints/sprint-1/f05-test-environment.md).
 
 ---
 
