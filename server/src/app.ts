@@ -38,7 +38,7 @@ app.use(enforcePasswordChangeCheck);
 // Health API — GET /api/health
 // ---------------------------------------------------------------------------
 app.get("/api/health", (_req: Request, res: Response) => {
-  res.status(200).json({ status: "ok", service: "E-Commerce System API" });
+  res.status(200).json({ status: "ok", service: "TechTent API" });
 });
 
 // ---------------------------------------------------------------------------

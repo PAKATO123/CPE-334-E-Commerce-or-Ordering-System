@@ -1,0 +1,171 @@
+// Prisma schema for TokTickIT — Lab 3 Sprint
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums & User Administration
+// ---------------------------------------------------------------------------
+
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMINISTRATOR
+}
+
+model User {
+  id                 Int              @id @default(autoincrement())
+  email              String           @unique
+  passwordHash       String
+  name               String
+  role               Role             @default(REQUESTER)
+  isActive           Boolean          @default(true)
+  mustChangePassword Boolean          @default(true)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  ticketsSubmitted   Ticket[]         @relation("TicketRequester")
+  ticketsAssigned    Ticket[]         @relation("TicketAssignee")
+  publicComments     PublicComment[]
+  internalNotes      InternalNote[]
+  actionsTaken       ActionTaken[]
+}
+
+// Legacy Requester model retained for migration compatibility
+
+model Requester {
+  id         Int      @id @default(autoincrement())
+  name       String
+  email      String   @unique
+  department String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Core Reference Data & Ticket Domain
+// ---------------------------------------------------------------------------
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets   Ticket[]
+}
+
+model RelatedSystem {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tickets     Ticket[]
+}
+
+model Ticket {
+  id                  Int             @id @default(autoincrement())
+  ticketNumber        String          @unique
+  requesterId         Int
+  requester           User            @relation("TicketRequester", fields: [requesterId], references: [id])
+  assignedToId        Int?
+  assignedTo          User?           @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  categoryId          Int
+  category            Category        @relation(fields: [categoryId], references: [id])
+  relatedSystemId     Int
+  relatedSystem       RelatedSystem   @relation(fields: [relatedSystemId], references: [id])
+  summary             String
+  description         String
+  requestedPriority   String?
+  itPriority          String?
+  currentStatus       String          @default("New")
+  isRequesterResolved Boolean         @default(false)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  attachments         Attachment[]
+  publicComments      PublicComment[]
+  internalNotes       InternalNote[]
+  actionsTaken        ActionTaken[]
+
+  @@index([requesterId, currentStatus])
+  @@index([assignedToId, currentStatus])
+  @@index([itPriority])
+  @@index([createdAt])
+}
+
+model Attachment {
+  id            Int       @id @default(autoincrement())
+  ticketId      Int
+  ticket        Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fileName      String
+  contentType   String
+  fileSize      Int
+  fileData      Bytes     @db.ByteA
+  isDeleted     Boolean   @default(false)
+  removalReason String?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([ticketId, isDeleted])
+}
+
+// ---------------------------------------------------------------------------
+// Ticket Communication: Comments & Notes
+// ---------------------------------------------------------------------------
+
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Work Tracking: Actions Taken
+// ---------------------------------------------------------------------------
+
+model ActionTaken {
+  id               Int      @id @default(autoincrement())
+  ticketId         Int
+  ticket           Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actionDate       DateTime @default(now())
+  description      String
+  result           String
+  performedById    Int
+  performedBy      User     @relation(fields: [performedById], references: [id])
+  followUpRequired Boolean  @default(false)
+  isFollowedUp     Boolean  @default(false)
+  followUpNote     String?
+  attachmentNotes  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([ticketId, createdAt])
+  @@index([performedById])
+}
+
