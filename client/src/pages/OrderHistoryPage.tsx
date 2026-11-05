@@ -316,7 +316,7 @@ export const OrderHistoryPage: React.FC = () => {
                       gap: "6px",
                     }}
                   >
-                    📄 View Itemized Receipt
+                    {order.status === "ACCEPTED" ? "📄 View Order Receipt" : "🔍 View Order Details"}
                   </button>
                 </div>
               </div>

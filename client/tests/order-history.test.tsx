@@ -98,15 +98,17 @@ describe("Feature 4: Customer Order History & Receipt Details (F-04)", () => {
       expect(screen.getByTestId("order-card-ORD-20261102-0002")).toBeInTheDocument();
     });
 
-    // Check Order 1 details
+    // Check Order 1 details (PENDING -> "🔍 View Order Details")
     expect(screen.getByTestId("order-number-ORD-20261102-0001")).toHaveTextContent("ORD-20261102-0001");
     expect(screen.getByTestId("order-total-ORD-20261102-0001")).toHaveTextContent("$1,057.00");
     expect(screen.getByText(/Pending/i)).toBeInTheDocument();
+    expect(screen.getByTestId("view-receipt-btn-ORD-20261102-0001")).toHaveTextContent("🔍 View Order Details");
 
-    // Check Order 2 details
+    // Check Order 2 details (ACCEPTED -> "📄 View Order Receipt")
     expect(screen.getByTestId("order-number-ORD-20261102-0002")).toHaveTextContent("ORD-20261102-0002");
     expect(screen.getByTestId("order-total-ORD-20261102-0002")).toHaveTextContent("$549.00");
     expect(screen.getByText(/Accepted/i)).toBeInTheDocument();
+    expect(screen.getByTestId("view-receipt-btn-ORD-20261102-0002")).toHaveTextContent("📄 View Order Receipt");
   });
 
   it("renders empty state when customer has not placed any orders yet", async () => {
@@ -206,6 +208,32 @@ describe("Feature 4: Customer Order History & Receipt Details (F-04)", () => {
       expect(screen.getByTestId("order-error-message")).toHaveTextContent("Order not found or permission denied.");
       expect(screen.getByRole("link", { name: /Return to My Orders/i })).toHaveAttribute("href", "/orders");
     });
+  });
+
+  it("hides Continue Shopping button and renders Return to Operator Queue for operator view", async () => {
+    const singleOrder: OrderData = {
+      ...MOCK_ORDERS[0],
+      customerName: "Alice Customer",
+      customerEmail: "customer1@example.com",
+    };
+
+    vi.mocked(api.getOrderByIdApi).mockResolvedValueOnce({ data: singleOrder });
+
+    render(
+      <MemoryRouter initialEntries={["/orders/10"]}>
+        <Routes>
+          <Route path="/orders/:id" element={<OrderDetailPage operatorView={true} />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("order-receipt-card")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("continue-shopping-link")).not.toBeInTheDocument();
+    expect(screen.getByTestId("return-orders-btn")).toHaveTextContent("← Return to Operator Queue");
+    expect(screen.getByText("Customer Order Details & Fulfillment Status")).toBeInTheDocument();
   });
 });
 

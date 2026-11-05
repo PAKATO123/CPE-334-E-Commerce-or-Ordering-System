@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { getOrderByIdApi } from "../api";
 import { OrderData } from "../types/order";
 import { formatUSD } from "../utils/currency";
+import { AuthContext } from "../context/AuthContext";
 
 export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operatorView = false }) => {
+  const auth = useContext(AuthContext);
+  const isOperator = operatorView || auth?.user?.role === "OPERATOR" || auth?.user?.role === "ADMIN";
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -12,10 +15,10 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
   const navigate = useNavigate();
   const location = useLocation();
   const queueSearch = location.state?.operatorQueueSearch;
-  const returnPath = operatorView
+  const returnPath = isOperator
     ? `/operator/orders${typeof queueSearch === "string" && queueSearch.startsWith("?") ? queueSearch : ""}`
     : "/orders";
-  const returnLabel = operatorView ? "Operator Queue" : "My Orders";
+  const returnLabel = isOperator ? "← Return to Operator Queue" : "My Orders";
 
   useEffect(() => {
     if (!id) return;
@@ -207,7 +210,11 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
               ⛺ TechTent Electronics
             </div>
             <div style={{ fontSize: "13px", color: "#718096" }}>
-              Official Customer Purchase Receipt & Fulfillment Order
+              {order.status === "ACCEPTED"
+                ? "Official Customer Purchase Receipt & Fulfillment Order"
+                : order.status === "REJECTED"
+                ? "Customer Order Summary & Cancellation Notice"
+                : "Customer Order Details & Fulfillment Status"}
             </div>
           </div>
 
@@ -412,18 +419,22 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
             <button
               type="button"
               onClick={() => navigate(returnPath)}
-              className="tt-btn"
+              className={isOperator ? "tt-btn tt-btn-primary" : "tt-btn"}
+              data-testid="return-orders-btn"
               style={{ padding: "8px 18px", fontSize: "13px", fontWeight: 600 }}
             >
               {returnLabel}
             </button>
-            <Link
-              to="/"
-              className="tt-btn tt-btn-primary"
-              style={{ textDecoration: "none", padding: "8px 18px", fontSize: "13px" }}
-            >
-              Continue Shopping
-            </Link>
+            {!isOperator && (
+              <Link
+                to="/"
+                className="tt-btn tt-btn-primary"
+                data-testid="continue-shopping-link"
+                style={{ textDecoration: "none", padding: "8px 18px", fontSize: "13px" }}
+              >
+                Continue Shopping
+              </Link>
+            )}
           </div>
         </div>
       </div>
