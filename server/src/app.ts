@@ -6,6 +6,14 @@ import bcrypt from "bcryptjs";
 import { getPrisma } from "./prisma.js";
 import { generateOrderNumber } from "./utils/orderNumber.js";
 import {
+  isOperatorOrderStatus,
+  listOperatorOrders,
+  isFulfillmentStatus,
+  parseOperatorOrderId,
+  processOperatorOrder,
+  OperatorOrderError,
+} from "./services/operatorOrders.js";
+import {
   requireAuth,
   requireRole,
   enforcePasswordChangeCheck,
@@ -609,11 +617,72 @@ app.get(
 );
 
 // ---------------------------------------------------------------------------
-// Operator Orders Queue (F-05 skeleton for testing RBAC / requireRole)
+// Operator Orders Queue (F-05)
 // ---------------------------------------------------------------------------
-app.get("/api/operator/orders", requireAuth, requireRole("OPERATOR", "ADMIN"), (_req: Request, res: Response) => {
-  return res.status(200).json({ data: [] });
-});
+app.get(
+  "/api/operator/orders",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    const { status } = req.query;
+    if (status !== undefined && !isOperatorOrderStatus(status)) {
+      return res.status(400).json({
+        error: {
+          code: "INVALID_STATUS",
+          message: "Status must be PENDING, ACCEPTED, or REJECTED. Omit status to list all orders.",
+        },
+      });
+    }
+
+    try {
+      const data = await listOperatorOrders(getPrisma(), status);
+      return res.status(200).json({ data });
+    } catch (error) {
+      console.error("Fetch operator orders error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to fetch operator orders." },
+      });
+    }
+  }
+);
+
+app.patch(
+  "/api/operator/orders/:id/status",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    const id = parseOperatorOrderId(req.params.id);
+    if (id === undefined) {
+      return res.status(400).json({
+        error: { code: "INVALID_ID", message: "Order ID must be a positive 32-bit integer." },
+      });
+    }
+
+    const status = req.body?.status;
+    if (!isFulfillmentStatus(status)) {
+      return res.status(400).json({
+        error: { code: "INVALID_STATUS", message: "Status must be ACCEPTED or REJECTED." },
+      });
+    }
+
+    try {
+      const data = await processOperatorOrder(getPrisma(), id, status);
+      return res.status(200).json({ data });
+    } catch (error) {
+      if (error instanceof OperatorOrderError) {
+        return res.status(error.statusCode).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Process operator order error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to process order." },
+      });
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // 404 Handler

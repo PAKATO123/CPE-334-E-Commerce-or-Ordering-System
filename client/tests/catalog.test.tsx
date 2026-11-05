@@ -252,4 +252,40 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
       expect(remainingToasts[0]).toHaveTextContent("1x Flagship Pro Smartphone 256GB");
     });
   });
+
+  it("hides Add to Order button and In Cart badge for OPERATOR role and displays staff notice", async () => {
+    vi.mocked(api.getMeApi).mockResolvedValue({
+      user: {
+        id: 2,
+        email: "operator1@example.com",
+        name: "Bob Operator",
+        role: "OPERATOR",
+        mustChangePassword: false,
+        isActive: true,
+      },
+    });
+    vi.mocked(api.getProductsApi).mockResolvedValue({ data: MOCK_PRODUCTS });
+    vi.mocked(api.getCategoriesApi).mockResolvedValue({ data: ["Smartphones", "Keyboards"] });
+
+    render(
+      <AuthProvider>
+        <CartProvider>
+          <MemoryRouter initialEntries={["/"]}>
+            <CatalogPage />
+          </MemoryRouter>
+        </CartProvider>
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Flagship Pro Smartphone 256GB")).toBeInTheDocument();
+      expect(screen.getByTestId("operator-catalog-notice")).toBeInTheDocument();
+      expect(screen.getByText(/Staff Mode \(OPERATOR\)/i)).toBeInTheDocument();
+    });
+
+    // Verify Add to Order button and In Cart badge are NOT rendered for operators
+    expect(screen.queryByTestId("add-to-order-btn-PHON-PRO-256")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("add-to-order-btn-KB-MECH-RGB")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("in-cart-badge")).not.toBeInTheDocument();
+  });
 });

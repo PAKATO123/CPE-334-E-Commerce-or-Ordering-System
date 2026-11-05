@@ -2,14 +2,19 @@ import React, { useContext } from "react";
 import { Product } from "../../types/product";
 import { formatUSD } from "../../utils/currency";
 import { CartContext } from "../../context/CartContext";
+import { AuthContext } from "../../context/AuthContext";
 
 interface ProductCardProps {
   product: Product;
   onAddToCart?: (product: Product, quantity: number) => void;
+  canAddToCart?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, canAddToCart }) => {
+  const auth = useContext(AuthContext);
   const cart = useContext(CartContext);
+  const isStaff = auth?.user?.role === "OPERATOR" || auth?.user?.role === "ADMIN";
+  const showAddToCart = canAddToCart !== undefined ? canAddToCart : !isStaff;
   const inCartQuantity = cart ? cart.getItemQuantity(product.id) : 0;
   const isOutOfStock = product.stockQuantity === 0;
   const isCartMaxed = !isOutOfStock && inCartQuantity >= product.stockQuantity;
@@ -150,49 +155,53 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
                   In Stock ({product.stockQuantity})
                 </span>
 
-                <span
-                  data-testid="in-cart-badge"
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    padding: "2px 8px",
-                    borderRadius: "10px",
-                    backgroundColor: isCartMaxed ? "#FEFCBF" : inCartQuantity > 0 ? "#EBF8FF" : "#F7FAFC",
-                    color: isCartMaxed ? "#975A16" : inCartQuantity > 0 ? "#2B6CB0" : "#718096",
-                    border: `1px solid ${isCartMaxed ? "#F6E05E" : inCartQuantity > 0 ? "#BEE3F8" : "#E2E8F0"}`,
-                  }}
-                >
-                  In Cart: {inCartQuantity}
-                </span>
+                {showAddToCart && (
+                  <span
+                    data-testid="in-cart-badge"
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                      backgroundColor: isCartMaxed ? "#FEFCBF" : inCartQuantity > 0 ? "#EBF8FF" : "#F7FAFC",
+                      color: isCartMaxed ? "#975A16" : inCartQuantity > 0 ? "#2B6CB0" : "#718096",
+                      border: `1px solid ${isCartMaxed ? "#F6E05E" : inCartQuantity > 0 ? "#BEE3F8" : "#E2E8F0"}`,
+                    }}
+                  >
+                    In Cart: {inCartQuantity}
+                  </span>
+                )}
               </>
             )}
           </div>
         </div>
 
         {/* Action Button */}
-        <button
-          type="button"
-          disabled={isOutOfStock || isCartMaxed}
-          onClick={() => onAddToCart && onAddToCart(product, 1)}
-          className={isOutOfStock || isCartMaxed ? "tt-btn" : "tt-btn tt-btn-primary"}
-          data-testid={`add-to-order-btn-${product.sku}`}
-          style={{
-            width: "100%",
-            height: "40px",
-            fontWeight: 600,
-            fontSize: "14px",
-            cursor: isOutOfStock || isCartMaxed ? "not-allowed" : "pointer",
-            backgroundColor: isCartMaxed ? "#EDF2F7" : undefined,
-            color: isCartMaxed ? "#718096" : undefined,
-            borderColor: isCartMaxed ? "#CBD5E0" : undefined,
-          }}
-        >
-          {isOutOfStock
-            ? "Out of Stock"
-            : isCartMaxed
-            ? "All Stock in Cart"
-            : "Add to Order"}
-        </button>
+        {showAddToCart && (
+          <button
+            type="button"
+            disabled={isOutOfStock || isCartMaxed}
+            onClick={() => onAddToCart && onAddToCart(product, 1)}
+            className={isOutOfStock || isCartMaxed ? "tt-btn" : "tt-btn tt-btn-primary"}
+            data-testid={`add-to-order-btn-${product.sku}`}
+            style={{
+              width: "100%",
+              height: "40px",
+              fontWeight: 600,
+              fontSize: "14px",
+              cursor: isOutOfStock || isCartMaxed ? "not-allowed" : "pointer",
+              backgroundColor: isCartMaxed ? "#EDF2F7" : undefined,
+              color: isCartMaxed ? "#718096" : undefined,
+              borderColor: isCartMaxed ? "#CBD5E0" : undefined,
+            }}
+          >
+            {isOutOfStock
+              ? "Out of Stock"
+              : isCartMaxed
+              ? "All Stock in Cart"
+              : "Add to Order"}
+          </button>
+        )}
       </div>
     </div>
   );

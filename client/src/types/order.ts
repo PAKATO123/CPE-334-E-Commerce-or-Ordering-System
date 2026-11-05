@@ -32,3 +32,14 @@ export interface CreateOrderPayload {
   items: CreateOrderItemPayload[];
 }
 
+export type OrderStatus = OrderData["status"];
+export type FulfillmentStatus = Exclude<OrderStatus, "PENDING">;
+export type OperatorQueueFilter = "ALL" | OrderStatus;
+
+export interface ProcessedOrderData {
+  id: number;
+  orderNumber: string;
+  status: FulfillmentStatus;
+  updatedAt: string;
+}
+

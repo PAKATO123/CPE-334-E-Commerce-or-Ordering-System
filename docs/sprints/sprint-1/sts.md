@@ -42,10 +42,10 @@ The Sprint 1 verification strategy ensures comprehensive test coverage across th
 | **TEST-BR-04** | AC-BR-04 | Unit / API | Order payload contains quantity = 0 or -1 | Send `POST /api/orders` | Status `400 Bad Request`, error `INVALID_QUANTITY` |
 | **TEST-SEC-01** | AC-SEC-01 | Integration | Customer 1 logged in; order #99 belongs to Customer 2 | Send `GET /api/orders/99` | Status `403 Forbidden` (or 404), zero order details exposed |
 | **TEST-SEC-02** | AC-SEC-02 | Integration | Customer role logged in | Send `GET /api/operator/orders` or `PATCH /api/operator/orders/:id/status` | Status `403 Forbidden`, error `FORBIDDEN` |
-| **TEST-OP-01** | AC-OP-01 | Integration | Operator authenticated; 3 pending orders exist | Send `GET /api/operator/orders` | Status `200 OK`, returns all pending orders across all customers |
+| **TEST-OP-01** | AC-OP-01 | Integration | Operator authenticated; orders across customers/statuses exist | Send `GET /api/operator/orders`; repeat with each status filter | Status `200 OK`; no filter returns all statuses, selected filter returns only matching orders, newest first |
 | **TEST-OP-02** | AC-OP-02 | Integration | Operator authenticated; order status = `PENDING` | Send `PATCH /api/operator/orders/:id/status` with `{"status":"ACCEPTED"}` | Status `200 OK`, order status updated to `ACCEPTED` in database |
 | **TEST-OP-03** | AC-OP-03 | Integration | Order #42 is `PENDING` with 1 Smart TV reserved; TV stock = 4 | Operator sends `PATCH` with `{"status":"REJECTED"}` | Status `200 OK`, order marked `REJECTED`, TV stock restored to 5 |
-| **TEST-BR-05** | AC-BR-05 | Integration | Order is already `ACCEPTED` | Operator attempts `PATCH` to `PENDING` or `REJECTED` | Status `409 Conflict`, invalid state transition rejected |
+| **TEST-BR-05** | BR-06 | Integration | Order is already `ACCEPTED` or `REJECTED` | Operator attempts either valid terminal target | Status `409 ORDER_ALREADY_PROCESSED`, status/stock unchanged; invalid target `PENDING` is separately rejected with `400 INVALID_STATUS` |
 | **TEST-E2E-01** | Critical Flow | E2E | Seeded database, browser running | Customer logs in, adds Charger and Keyboard to cart, submits order, checks history receipt | Order created, persists in DB, receipt shows correct line items and totals |
 | **TEST-E2E-02** | Critical Flow | E2E | Pending order in queue | Operator logs in, opens Operator Queue, reviews order, clicks "Accept Order" | Order badge updates to "Accepted" live; customer view reflects update |
 
@@ -68,3 +68,49 @@ A Sprint 1 increment is formally **DONE** only when all of the following enginee
    - The repository can be cloned afresh, migrated, seeded, built, and executed following the instructions in `README.md` without undocumented manual tweaks.
 6. **Documentation & Deliverable Readiness**:
    - Parts A through F documents (`docs/srs.md`, `docs/features.md`, `docs/traceability.md`, `docs/system-sds.md`, `docs/sprints/plan.md`, `docs/sprints/sprint-1/`) are complete, formatted, and ready for compilation into the Deliverable 1 PDF.
+
+## 4. Feature 5 executable verification and results
+
+The Feature 5 test increment has been executed. It does not establish every
+Sprint 1 Definition of Done condition above; browser E2E and manual checks remain.
+
+| Suite | Test file(s) | Passed | Failed | Skipped |
+|---|---|---:|---:|---:|
+| Backend F-01 through F-05 integration/regression | `server/tests/{auth,products,orders,operator-orders,health}.test.ts` | 93 | 0 | 0 |
+| Backend database-free validation, safety and retry unit tests | `server/tests/unit/*.test.ts` | 48 | 0 | 0 |
+| Frontend regression and operator interaction/access/API tests | `client/tests/*.test.tsx` | 41 | 0 | 0 |
+
+Total: **182 distinct passing tests**. The 47 F-05 integration cases passed in a
+separate focused run and are already included in the 93. Both TypeScript/build
+commands passed. Expected negative-case logs, including the injected rollback
+failure, did not represent failed tests.
+
+### Coverage of fulfillment guarantees
+
+- Both operator and administrator can list and process orders; anonymous and customer requests are denied.
+- All/individual status filters, malformed filters, safe summaries and newest-first ordering are checked.
+- Account deactivation, post-login role changes and newly imposed password policy are checked.
+- Acceptance leaves stock unchanged; rejection restores every reserved quantity, including inactive products.
+- Valid terminal targets on terminal orders receive 409; malformed targets/IDs receive 400; missing orders receive 404.
+- Two HTTP requests are gated at entry to real Prisma transactions. Competing reject/reject, accept/reject and accept/accept requests yield one 200 and one 409, with stock matching the winner.
+- Failure is injected on the second inventory restoration inside a real transaction. The first stock update and status/timestamp change are confirmed rolled back.
+- Checkout/catalog/history/receipt integration preserves prices, updated statuses on retrieval, operator/admin receipt access and cross-customer isolation.
+- Frontend coverage includes duplicate-click prevention, rejection confirmation/cancellation, conflict refresh, stale-response protection, processing-success versus refresh-failure feedback, receipt return filters and real application route guards.
+
+### Execution safety
+
+See [the disposable database instructions](f05-test-environment.md). Plain backend
+`npm test` refuses to run without an explicit allowlisted test URL and opt-in.
+The disabled-opt-in dry run intentionally exited before collection, not as a
+failed application test. Worker setup and the Prisma factory enforce the target;
+global setup also checks the actual PostgreSQL database/user identity.
+
+Unit and frontend suites are database-free. Integration/regression suites must
+use only the dedicated temporary container, because inherited tests reset shared
+demo accounts and delete orders. The test container was removed after execution.
+
+### Remaining verification limits
+
+- No browser E2E suite, responsive viewport inspection, print preview or native dialog keyboard-trapping verification was executed.
+- Mocked retry tests cover the bounded P2034 retry path; an actual PostgreSQL deadlock was not deliberately induced.
+- Passing fulfillment concurrency tests do not verify or repair the inherited concurrent customer-checkout stock and order-reference races.

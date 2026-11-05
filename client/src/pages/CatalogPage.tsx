@@ -18,6 +18,7 @@ export const CatalogPage: React.FC = () => {
   const { user } = useAuth();
   const { addToCart, catalogVersion } = useCart();
   const navigate = useNavigate();
+  const isStaff = user?.role === "OPERATOR" || user?.role === "ADMIN";
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -90,6 +91,11 @@ export const CatalogPage: React.FC = () => {
     // Anonymous user redirection: prompt login before cart interaction
     if (!user) {
       navigate("/login");
+      return;
+    }
+
+    // Operators and Admins cannot order or add items to cart
+    if (isStaff) {
       return;
     }
 
@@ -220,6 +226,39 @@ export const CatalogPage: React.FC = () => {
           High-performance electronics, smartphones, displays, and accessories with real-time stock availability.
         </p>
       </div>
+
+      {/* Staff Mode Notice */}
+      {isStaff && (
+        <div
+          data-testid="operator-catalog-notice"
+          style={{
+            backgroundColor: "#EBF8FF",
+            border: "1px solid #BEE3F8",
+            borderRadius: "6px",
+            padding: "12px 18px",
+            marginBottom: "20px",
+            color: "#2B6CB0",
+            fontSize: "13px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          <span>
+            💼 <strong>Staff Mode ({user?.role}):</strong> You are browsing catalog inventory. Ordering and cart additions are restricted to customer accounts.
+          </span>
+          <button
+            type="button"
+            onClick={() => navigate("/operator/orders")}
+            className="tt-btn tt-btn-primary"
+            style={{ height: "32px", fontSize: "12px", padding: "0 14px" }}
+          >
+            Go to Operator Orders Queue →
+          </button>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div
@@ -402,6 +441,7 @@ export const CatalogPage: React.FC = () => {
             <ProductCard
               key={product.id}
               product={product}
+              canAddToCart={!isStaff}
               onAddToCart={handleAddToCart}
             />
           ))}

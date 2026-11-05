@@ -60,7 +60,7 @@ export const AppShell: React.FC = () => {
                 Catalog
               </NavLink>
 
-              {user && (
+              {user?.role === "CUSTOMER" && (
                 <NavLink
                   to="/orders"
                   className={({ isActive }) => `tt-nav-link ${isActive ? "active" : ""}`}
@@ -100,7 +100,7 @@ export const AppShell: React.FC = () => {
 
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             {/* Customer Cart / Order Preview Button */}
-            {user && (
+            {user?.role === "CUSTOMER" && (
               <button
                 type="button"
                 onClick={openCart}

@@ -36,7 +36,8 @@ The system is organized into three logical tiers adhering to clean separation of
 |  - Auth Router: POST /login, POST /logout, GET /me, POST /change-password       |
 |  - Catalog Router: GET /api/products                                            |
 |  - Orders Router: POST /api/orders, GET /api/orders, GET /api/orders/:id        |
-|  - Operator Router: GET /api/operator/orders, PATCH /api/operator/orders/:id    |
+|  - Operator Router: GET /api/operator/orders                                  |
+|    PATCH /api/operator/orders/:id/status                                     |
 |  - Authoritative Engine: Server-side pricing recalculation & transaction guard  |
 +---------------------------------------------------------------------------------+
                                        │
@@ -291,3 +292,33 @@ model OrderItem {
   - Multi-stage Docker packaging separating client Vite static build from Express Node.js runner.
   - Production static serving or reverse proxy for frontend assets.
   - Cloud SQL PostgreSQL connectivity compatible with Google Cloud Run.
+
+## 7. Implemented Feature 5 Fulfillment Design
+
+`server/src/app.ts` exposes `GET /api/operator/orders` and
+`PATCH /api/operator/orders/:id/status`. The operator service lives in
+`server/src/services/operatorOrders.ts`; no new schema or library is required.
+
+Both endpoints authenticate, refresh/enforce password policy, then require
+`OPERATOR` or `ADMIN`. Queue queries select only permitted customer and item
+fields, filter in the database, and sort by placement date/ID descending. Stored
+Decimal prices/totals are serialized directly to two-decimal strings.
+
+Status processing uses a Prisma `ReadCommitted` transaction. Its first write
+conditionally updates the requested order only if status is `PENDING`. Affected
+row count must be one before inventory restoration. PostgreSQL's row lock and
+predicate recheck serialize competing updates to that order. Acceptance touches
+no inventory; rejection increments each stored quantity in stable product-ID
+order. All writes roll back on any failure. P2034 errors retry the complete
+aborted transaction up to three attempts; individual increments are never retried
+outside the transaction. Terminal orders return a conflict without further writes.
+
+The frontend uses existing routing, auth, API and currency helpers. Query-string
+filters survive queue refresh and receipt round trips. The native rejection
+dialog provides a name/description and focus handling. UI controls prevent
+accidental duplicate submission; correctness still rests on the backend claim.
+
+Real PostgreSQL concurrency and post-write rollback tests passed. Native browser
+dialog behavior and responsive visual rendering remain unverified. This design
+does not repair the separate inherited customer-checkout concurrency defects.
+See [the integration review](sprints/sprint-1/f05-integration-review.md).

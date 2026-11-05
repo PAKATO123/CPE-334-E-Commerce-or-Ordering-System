@@ -1,15 +1,24 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useContext } from "react";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { getOrderByIdApi } from "../api";
 import { OrderData } from "../types/order";
 import { formatUSD } from "../utils/currency";
+import { AuthContext } from "../context/AuthContext";
 
-export const OrderDetailPage: React.FC = () => {
+export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operatorView = false }) => {
+  const auth = useContext(AuthContext);
+  const isOperator = operatorView || auth?.user?.role === "OPERATOR" || auth?.user?.role === "ADMIN";
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const queueSearch = location.state?.operatorQueueSearch;
+  const returnPath = isOperator
+    ? `/operator/orders${typeof queueSearch === "string" && queueSearch.startsWith("?") ? queueSearch : ""}`
+    : "/orders";
+  const returnLabel = isOperator ? "← Return to Operator Queue" : "My Orders";
 
   useEffect(() => {
     if (!id) return;
@@ -130,11 +139,11 @@ export const OrderDetailPage: React.FC = () => {
             {error || "Order not found or permission denied."}
           </p>
           <Link
-            to="/orders"
+            to={returnPath}
             className="tt-btn tt-btn-primary"
             style={{ textDecoration: "none", padding: "10px 24px" }}
           >
-            ← Return to My Orders
+            ← Return to {returnLabel}
           </Link>
         </div>
       </div>
@@ -155,7 +164,7 @@ export const OrderDetailPage: React.FC = () => {
       {/* Top Navigation Breadcrumb */}
       <div className="no-print" style={{ marginBottom: "20px" }}>
         <Link
-          to="/orders"
+          to={returnPath}
           data-testid="back-to-orders-link"
           style={{
             textDecoration: "none",
@@ -167,7 +176,7 @@ export const OrderDetailPage: React.FC = () => {
             gap: "6px",
           }}
         >
-          ← Back to Order History
+          ← Back to {operatorView ? "Operator Queue" : "Order History"}
         </Link>
       </div>
 
@@ -201,7 +210,11 @@ export const OrderDetailPage: React.FC = () => {
               ⛺ TechTent Electronics
             </div>
             <div style={{ fontSize: "13px", color: "#718096" }}>
-              Official Customer Purchase Receipt & Fulfillment Order
+              {order.status === "ACCEPTED"
+                ? "Official Customer Purchase Receipt & Fulfillment Order"
+                : order.status === "REJECTED"
+                ? "Customer Order Summary & Cancellation Notice"
+                : "Customer Order Details & Fulfillment Status"}
             </div>
           </div>
 
@@ -405,19 +418,23 @@ export const OrderDetailPage: React.FC = () => {
           <div style={{ display: "flex", gap: "10px" }}>
             <button
               type="button"
-              onClick={() => navigate("/orders")}
-              className="tt-btn"
+              onClick={() => navigate(returnPath)}
+              className={isOperator ? "tt-btn tt-btn-primary" : "tt-btn"}
+              data-testid="return-orders-btn"
               style={{ padding: "8px 18px", fontSize: "13px", fontWeight: 600 }}
             >
-              My Orders
+              {returnLabel}
             </button>
-            <Link
-              to="/"
-              className="tt-btn tt-btn-primary"
-              style={{ textDecoration: "none", padding: "8px 18px", fontSize: "13px" }}
-            >
-              Continue Shopping
-            </Link>
+            {!isOperator && (
+              <Link
+                to="/"
+                className="tt-btn tt-btn-primary"
+                data-testid="continue-shopping-link"
+                style={{ textDecoration: "none", padding: "8px 18px", fontSize: "13px" }}
+              >
+                Continue Shopping
+              </Link>
+            )}
           </div>
         </div>
       </div>

@@ -137,7 +137,7 @@ export async function getCategoriesApi(): Promise<{ data: string[] }> {
 // Order Management API Calls (F-03, F-04)
 // ---------------------------------------------------------------------------
 
-import { OrderData, CreateOrderPayload } from "./types/order";
+import { OrderData, CreateOrderPayload, OrderStatus, FulfillmentStatus, ProcessedOrderData } from "./types/order";
 
 export async function createOrderApi(payload: CreateOrderPayload): Promise<{ data: OrderData }> {
   const res = await fetch(`${API_BASE_URL}/api/orders`, {
@@ -187,6 +187,46 @@ export async function getOrderByIdApi(id: number | string): Promise<{ data: Orde
     error.status = res.status;
     error.code = json.error?.code;
     throw error;
+  }
+  return json;
+}
+
+// Operator queue and fulfillment (F-05).
+export async function getOperatorOrdersApi(
+  status?: OrderStatus,
+  signal?: AbortSignal
+): Promise<{ data: OrderData[] }> {
+  const query = status ? `?${new URLSearchParams({ status })}` : "";
+  const res = await fetch(`${API_BASE_URL}/api/operator/orders${query}`, {
+    credentials: "include",
+    signal,
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw Object.assign(new Error(json.error?.message || "Failed to fetch operator orders."), {
+      status: res.status,
+      code: json.error?.code,
+    });
+  }
+  return json;
+}
+
+export async function processOperatorOrderApi(
+  id: number,
+  status: FulfillmentStatus
+): Promise<{ data: ProcessedOrderData }> {
+  const res = await fetch(`${API_BASE_URL}/api/operator/orders/${id}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ status }),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw Object.assign(new Error(json.error?.message || "Failed to process order."), {
+      status: res.status,
+      code: json.error?.code,
+    });
   }
   return json;
 }
