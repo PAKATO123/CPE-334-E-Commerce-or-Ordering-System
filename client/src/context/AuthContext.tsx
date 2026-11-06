@@ -13,7 +13,7 @@ interface AuthContextType {
   clearError: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -100,23 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {
-    return {
-      user: {
-        id: 1,
-        email: "requester1@toktickit.local",
-        name: "Development Requester",
-        role: "REQUESTER",
-        mustChangePassword: false,
-        isActive: true,
-      },
-      loading: false,
-      error: null,
-      login: async () => {},
-      logout: async () => {},
-      changePassword: async () => {},
-      refreshUser: async () => {},
-      clearError: () => {},
-    };
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

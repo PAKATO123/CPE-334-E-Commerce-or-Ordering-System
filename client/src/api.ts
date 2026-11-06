@@ -69,3 +69,164 @@ export async function changePasswordApi(payload: ChangePasswordPayload): Promise
   }
   return json;
 }
+
+// ---------------------------------------------------------------------------
+// Product Catalog & Inventory API Calls (F-02)
+// ---------------------------------------------------------------------------
+
+import { Product } from "./types/product";
+
+export async function getProductsApi(params?: { category?: string; search?: string }): Promise<{ data: Product[] }> {
+  const query = new URLSearchParams();
+  if (params?.category && params.category !== "All") {
+    query.set("category", params.category);
+  }
+  if (params?.search && params.search.trim()) {
+    query.set("search", params.search.trim());
+  }
+
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  const res = await fetch(`${API_BASE_URL}/api/products${qs}`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to fetch products.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+export async function getProductByIdApi(id: number): Promise<{ data: Product }> {
+  const res = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Product not found.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+export async function getCategoriesApi(): Promise<{ data: string[] }> {
+  const res = await fetch(`${API_BASE_URL}/api/categories`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to fetch categories.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+// ---------------------------------------------------------------------------
+// Order Management API Calls (F-03, F-04)
+// ---------------------------------------------------------------------------
+
+import { OrderData, CreateOrderPayload, OrderStatus, FulfillmentStatus, ProcessedOrderData } from "./types/order";
+
+export async function createOrderApi(payload: CreateOrderPayload): Promise<{ data: OrderData }> {
+  const res = await fetch(`${API_BASE_URL}/api/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to submit order.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    error.productId = json.error?.productId;
+    error.sku = json.error?.sku;
+    throw error;
+  }
+  return json;
+}
+
+export async function getMyOrdersApi(): Promise<{ data: OrderData[] }> {
+  const res = await fetch(`${API_BASE_URL}/api/orders`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to fetch orders.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+export async function getOrderByIdApi(id: number | string): Promise<{ data: OrderData }> {
+  const res = await fetch(`${API_BASE_URL}/api/orders/${id}`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to fetch order detail.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+// Operator queue and fulfillment (F-05).
+export async function getOperatorOrdersApi(
+  status?: OrderStatus,
+  signal?: AbortSignal
+): Promise<{ data: OrderData[] }> {
+  const query = status ? `?${new URLSearchParams({ status })}` : "";
+  const res = await fetch(`${API_BASE_URL}/api/operator/orders${query}`, {
+    credentials: "include",
+    signal,
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw Object.assign(new Error(json.error?.message || "Failed to fetch operator orders."), {
+      status: res.status,
+      code: json.error?.code,
+    });
+  }
+  return json;
+}
+
+export async function processOperatorOrderApi(
+  id: number,
+  status: FulfillmentStatus
+): Promise<{ data: ProcessedOrderData }> {
+  const res = await fetch(`${API_BASE_URL}/api/operator/orders/${id}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ status }),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw Object.assign(new Error(json.error?.message || "Failed to process order."), {
+      status: res.status,
+      code: json.error?.code,
+    });
+  }
+  return json;
+}

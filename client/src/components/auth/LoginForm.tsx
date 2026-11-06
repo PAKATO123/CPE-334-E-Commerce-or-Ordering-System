@@ -79,7 +79,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: "16px" }}>
-            <label style={{ display: "block", marginBottom: "6px", fontWeight: 500, fontSize: "14px" }}>
+            <label htmlFor="email-input" style={{ display: "block", marginBottom: "6px", fontWeight: 500, fontSize: "14px" }}>
               Email Address
             </label>
             <input
@@ -96,7 +96,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           </div>
 
           <div style={{ marginBottom: "24px" }}>
-            <label style={{ display: "block", marginBottom: "6px", fontWeight: 500, fontSize: "14px" }}>
+            <label htmlFor="password-input" style={{ display: "block", marginBottom: "6px", fontWeight: 500, fontSize: "14px" }}>
               Password
             </label>
             <input

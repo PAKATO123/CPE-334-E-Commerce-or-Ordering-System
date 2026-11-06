@@ -1,5 +1,5 @@
 /* ==========================================================================
-   TokTickIT — Zen Green Visual Design System (Lab 02)
+   TechTent — Zen Green Visual Design System (Lab 02)
    ========================================================================== */
 
 :root {
@@ -13,10 +13,10 @@
   --color-border-input: #CBD5E0;
   --color-text-main: #1A2E22;
   --color-text-muted: #718096;
-  
+
   --color-editable-bg: #FFFFFF;
   --color-readonly-bg: #F0F4F1;
-  
+
   --color-error: #C53030;
   --color-error-bg: #FFF5F5;
   --color-warning: #D69E2E;
@@ -25,10 +25,10 @@
   --color-urgent-border: #FEB2B2;
   --color-info: #3182CE;
   --color-info-bg: #EBF8FF;
-  
+
   /* Typography */
   --font-family-base: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  
+
   /* Spacing Scale */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -36,7 +36,7 @@
   --space-lg: 24px;
   --space-xl: 32px;
   --space-xxl: 48px;
-  
+
   /* Radii & Shadows */
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -46,7 +46,9 @@
 }
 
 /* Base resets & typography */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -61,15 +63,32 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   color: var(--color-text-main);
   margin-top: 0;
   font-weight: 600;
 }
 
-h1 { font-size: 24px; line-height: 1.3; font-weight: 700; }
-h2 { font-size: 20px; line-height: 1.35; }
-h3 { font-size: 16px; line-height: 1.4; }
+h1 {
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+h3 {
+  font-size: 16px;
+  line-height: 1.4;
+}
 
 a {
   color: var(--color-secondary-green);
@@ -186,10 +205,12 @@ a:hover {
     flex-direction: column;
     align-items: flex-start;
   }
+
   .tt-header-right {
     width: 100%;
     justify-content: space-between;
   }
+
   .tt-main-container {
     padding: var(--space-md);
   }
@@ -314,9 +335,16 @@ a:hover {
   font-size: 14px;
   font-weight: 600;
   border-radius: var(--radius-sm);
-  border: 1px solid transparent;
+  border: 1px solid #CBD5E0;
+  background-color: #EDF2F7;
+  color: var(--color-text-main);
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+}
+
+.tt-btn:hover:not(:disabled) {
+  background-color: #E2E8F0;
+  border-color: #A0AEC0;
 }
 
 .tt-btn:disabled {
@@ -329,39 +357,100 @@ a:hover {
 
 .tt-btn-primary {
   background-color: var(--color-primary-green);
+  border-color: var(--color-primary-green);
   color: #FFFFFF;
 }
 
 .tt-btn-primary:hover:not(:disabled) {
   background-color: var(--color-secondary-green);
+  border-color: var(--color-secondary-green);
+  color: #FFFFFF;
 }
 
 .tt-btn-secondary {
   background-color: var(--color-secondary-green);
+  border-color: var(--color-secondary-green);
   color: #FFFFFF;
 }
 
 .tt-btn-secondary:hover:not(:disabled) {
   background-color: #086036;
+  border-color: #086036;
+  color: #FFFFFF;
 }
 
 .tt-btn-outline {
-  background-color: transparent;
+  background-color: #FFFFFF;
   border-color: var(--color-primary-green);
   color: var(--color-primary-green);
 }
 
 .tt-btn-outline:hover:not(:disabled) {
   background-color: var(--color-pale-green);
+  border-color: var(--color-secondary-green);
+  color: var(--color-secondary-green);
 }
 
 .tt-btn-danger {
   background-color: var(--color-error);
+  border-color: var(--color-error);
   color: #FFFFFF;
 }
 
 .tt-btn-danger:hover:not(:disabled) {
   background-color: #9B2C2C;
+  border-color: #9B2C2C;
+  color: #FFFFFF;
+}
+
+/* Header Navbar Buttons (consistent with left-side nav, bold text, solid translucent background) */
+.tt-header-btn-nav {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  font-weight: 700 !important;
+  border-radius: 4px !important;
+  transition: all 0.15s ease;
+}
+
+.tt-header-btn-nav:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #FFFFFF !important;
+}
+
+.tt-header-btn-nav:active {
+  background-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.tt-header-btn {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  font-weight: 700 !important;
+  border-radius: 4px !important;
+  transition: all 0.15s ease;
+}
+
+.tt-header-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #FFFFFF !important;
+}
+
+.tt-header-btn-danger {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  font-weight: 700 !important;
+  border-radius: 4px !important;
+  transition: all 0.15s ease;
+}
+
+.tt-header-btn-danger:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #FFFFFF !important;
 }
 
 /* Messages & States */
@@ -389,7 +478,9 @@ a:hover {
 }
 
 @keyframes tt-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .tt-toast {
@@ -440,13 +531,25 @@ a:hover {
 }
 
 @keyframes tt-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes tt-slide-up {
-  from { transform: translateY(12px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .tt-btn-pill-primary {
@@ -491,3 +594,184 @@ a:hover {
   text-decoration: none !important;
 }
 
+
+/* Toast Notification Stack & Animations */
+.tt-toast-stack {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1500;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.tt-toast-item {
+  pointer-events: auto;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 380px;
+  width: 100%;
+  animation: tt-toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, box-shadow 0.3s ease;
+}
+
+.tt-toast-item-new {
+  background-color: var(--color-pale-green);
+  border: 2px solid var(--color-primary-green);
+  color: var(--color-text-main);
+  box-shadow: 0 8px 24px rgba(0, 107, 60, 0.22);
+}
+
+.tt-toast-item-old {
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E0;
+  color: #4A5568;
+  opacity: 0.92;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+@keyframes tt-toast-in {
+  0% {
+    transform: translateY(24px) scale(0.94);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Operator fulfillment queue */
+.tt-operator-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 20px;
+}
+
+.tt-operator-heading,
+.tt-operator-actions,
+.tt-operator-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tt-operator-heading { margin-bottom: 18px; }
+.tt-operator-heading h1,
+.tt-operator-heading h2 { margin-bottom: 8px; overflow-wrap: anywhere; }
+.tt-operator-heading p { color: var(--color-text-muted); margin: 0; }
+.tt-operator-filters,
+.tt-operator-actions { justify-content: flex-start; }
+.tt-operator-filters { margin-bottom: 20px; }
+.tt-operator-order { padding: 20px; margin-bottom: 18px; }
+.tt-operator-total { font-size: 22px; color: var(--color-primary-green); }
+.tt-operator-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.tt-operator-meta dt { font-weight: 600; margin-bottom: 4px; }
+.tt-operator-meta dd { margin: 0; overflow-wrap: anywhere; }
+.tt-operator-items { padding-left: 20px; margin: 18px 0; overflow-wrap: anywhere; }
+.tt-operator-items span { color: var(--color-text-muted); }
+.tt-operator-status { display: inline-block; border-radius: 12px; padding: 4px 10px; font-size: 12px; font-weight: 700; }
+.tt-operator-status-pending { background: #FEFCBF; color: #975A16; }
+.tt-operator-status-accepted { background: #EAF6EF; color: #0B7A46; }
+.tt-operator-status-rejected { background: #FFF5F5; color: #C53030; }
+.tt-operator-error,
+.tt-operator-success { padding: 14px; margin: 16px 0; border: 1px solid; border-radius: 8px; }
+.tt-operator-error { background: #FFF5F5; color: #9B2C2C; border-color: #FEB2B2; }
+.tt-operator-success { background: #EAF6EF; color: #086036; border-color: #C6E7D2; }
+.tt-operator-empty { padding: 32px; text-align: center; }
+.tt-reject-dialog { width: calc(100% - 32px); max-width: 520px; max-height: calc(100dvh - 32px); overflow-y: auto; padding: 24px; border: 1px solid var(--color-border); border-radius: 10px; color: var(--color-text-main); box-shadow: var(--shadow-md); }
+.tt-reject-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+.tt-reject-dialog h2 { overflow-wrap: anywhere; }
+.tt-reject-dialog p { line-height: 1.6; }
+
+@media (max-width: 480px) {
+  .tt-operator-page { padding: 20px 12px; }
+  .tt-operator-order { padding: 16px; }
+  .tt-operator-actions > .tt-btn { flex: 1 1 auto; }
+}
+
+/* ==========================================================================
+   Print Stylesheet
+   Only print the official receipt content, hiding all application headers,
+   toolbars, navigation bars, buttons, and drawer overlays.
+   ========================================================================== */
+@media print {
+  /* Hide all interactive, navigation, and application shell elements */
+  header,
+  header.tt-header,
+  .tt-header,
+  .tt-nav,
+  .tt-header-btn-nav,
+  .tt-btn-signout,
+  .tt-toast-stack,
+  .tt-drawer,
+  .no-print,
+  button,
+  .tt-btn,
+  a[href]:after {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Reset body and container for pure paper receipt layout */
+  body,
+  html,
+  #root,
+  .tt-shell {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
+  }
+
+  .receipt-page-container {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Target the official receipt card */
+  .tt-receipt-card {
+    border: 1px solid #CBD5E0 !important;
+    box-shadow: none !important;
+    padding: 24px !important;
+    border-radius: 4px !important;
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .tt-receipt-card table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .tt-receipt-card th,
+  .tt-receipt-card td {
+    border-color: #E2E8F0 !important;
+    color: #000000 !important;
+  }
+
+  /* Keep backgrounds and text sharp and accurate */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 12mm 15mm;
+  }
+}

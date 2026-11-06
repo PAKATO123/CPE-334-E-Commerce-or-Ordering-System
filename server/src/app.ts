@@ -4,6 +4,15 @@ import session from "express-session";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import { getPrisma } from "./prisma.js";
+import { generateOrderNumber } from "./utils/orderNumber.js";
+import {
+  isOperatorOrderStatus,
+  listOperatorOrders,
+  isFulfillmentStatus,
+  parseOperatorOrderId,
+  processOperatorOrder,
+  OperatorOrderError,
+} from "./services/operatorOrders.js";
 import {
   requireAuth,
   requireRole,
@@ -38,7 +47,7 @@ app.use(enforcePasswordChangeCheck);
 // Health API — GET /api/health
 // ---------------------------------------------------------------------------
 app.get("/api/health", (_req: Request, res: Response) => {
-  res.status(200).json({ status: "ok", service: "E-Commerce System API" });
+  res.status(200).json({ status: "ok", service: "TechTent API" });
 });
 
 // ---------------------------------------------------------------------------
@@ -193,6 +202,487 @@ app.post("/api/auth/change-password", requireAuth, async (req: Request, res: Res
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Product Catalog & Inventory Endpoints (F-02)
+// ---------------------------------------------------------------------------
+
+app.get("/api/products", async (req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+    const { category, search } = req.query;
+
+    const where: any = { isActive: true };
+
+    if (category && typeof category === "string" && category !== "All") {
+      where.category = category;
+    }
+
+    if (search && typeof search === "string" && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { sku: { contains: q, mode: "insensitive" } },
+      ];
+    }
+
+    const products = await prisma.product.findMany({
+      where,
+      orderBy: { id: "asc" },
+    });
+
+    const formatted = products.map((p) => ({
+      ...p,
+      price: Number(p.price).toFixed(2),
+    }));
+
+    return res.status(200).json({ data: formatted });
+  } catch (error) {
+    console.error("Fetch products error:", error);
+    return res.status(500).json({
+      error: { code: "INTERNAL_ERROR", message: "Failed to fetch products." },
+    });
+  }
+});
+
+app.get("/api/products/:id", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({
+        error: { code: "INVALID_ID", message: "Product ID must be an integer." },
+      });
+    }
+
+    const prisma = getPrisma();
+    const product = await prisma.product.findFirst({
+      where: { id, isActive: true },
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        error: { code: "PRODUCT_NOT_FOUND", message: "Product not found or inactive." },
+      });
+    }
+
+    return res.status(200).json({
+      data: {
+        ...product,
+        price: Number(product.price).toFixed(2),
+      },
+    });
+  } catch (error) {
+    console.error("Fetch product error:", error);
+    return res.status(500).json({
+      error: { code: "INTERNAL_ERROR", message: "Failed to fetch product." },
+    });
+  }
+});
+
+app.get("/api/categories", async (_req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+    const records = await prisma.product.findMany({
+      where: { isActive: true },
+      select: { category: true },
+      distinct: ["category"],
+      orderBy: { category: "asc" },
+    });
+
+    return res.status(200).json({ data: records.map((r) => r.category) });
+  } catch (error) {
+    console.error("Fetch categories error:", error);
+    return res.status(500).json({
+      error: { code: "INTERNAL_ERROR", message: "Failed to fetch categories." },
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Order Assembly & Atomic Persistence Endpoints (F-03)
+// ---------------------------------------------------------------------------
+
+app.post(
+  "/api/orders",
+  requireAuth,
+  requireRole("CUSTOMER"),
+  enforcePasswordChangeCheck,
+  async (req: Request, res: Response) => {
+    try {
+      const { items } = req.body;
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          error: { code: "EMPTY_ORDER", message: "Order must contain at least one item." },
+        });
+      }
+
+      // Validate quantities and product IDs
+      const itemMap = new Map<number, number>();
+      for (const item of items) {
+        const productId = parseInt(item.productId, 10);
+        const quantity = parseInt(item.quantity, 10);
+
+        if (isNaN(productId) || productId <= 0) {
+          return res.status(400).json({
+            error: { code: "INVALID_PRODUCT_ID", message: "Invalid product ID in order." },
+          });
+        }
+
+        if (isNaN(quantity) || quantity <= 0 || !Number.isInteger(Number(item.quantity))) {
+          return res.status(400).json({
+            error: { code: "INVALID_QUANTITY", message: "Item quantity must be a positive integer." },
+          });
+        }
+
+        const currentQty = itemMap.get(productId) || 0;
+        itemMap.set(productId, currentQty + quantity);
+      }
+
+      const consolidatedProductIds = Array.from(itemMap.keys());
+      const prisma = getPrisma();
+
+      // Execute within an atomic transaction (NFR-02, BR-03)
+      const result = await prisma.$transaction(async (tx) => {
+        // Fetch all requested products
+        const products = await tx.product.findMany({
+          where: {
+            id: { in: consolidatedProductIds },
+            isActive: true,
+          },
+        });
+
+        if (products.length !== consolidatedProductIds.length) {
+          const foundIds = new Set(products.map((p) => p.id));
+          const missingId = consolidatedProductIds.find((id) => !foundIds.has(id));
+          const err: any = new Error(`Product ID ${missingId} not found or is inactive.`);
+          err.statusCode = 404;
+          err.code = "PRODUCT_NOT_FOUND";
+          throw err;
+        }
+
+        // Validate stock availability for each product (supports simulation test SKU)
+        for (const product of products) {
+          const requestedQty = itemMap.get(product.id)!;
+          const isSimulatedFail = product.sku === "SIM-ATOM-FAIL";
+
+          if (product.stockQuantity < requestedQty || isSimulatedFail) {
+            const err: any = new Error(
+              isSimulatedFail
+                ? `Selected item '${product.name}' is out of stock. Please remove it from your cart to proceed.`
+                : `Insufficient stock for '${product.name}'. Available: ${product.stockQuantity}, Requested: ${requestedQty}`
+            );
+            err.statusCode = 409;
+            err.code = "INSUFFICIENT_STOCK";
+            err.failedProductId = product.id;
+            err.failedSku = product.sku;
+            throw err;
+          }
+        }
+
+        // Authoritative Pricing Calculation (BR-01, BR-02)
+        let grandTotal = 0;
+        const lineItemsData = products.map((product) => {
+          const quantity = itemMap.get(product.id)!;
+          const unitPrice = Number(product.price);
+          const subtotal = Number((unitPrice * quantity).toFixed(2));
+          grandTotal += subtotal;
+
+          return {
+            productId: product.id,
+            productName: product.name,
+            sku: product.sku,
+            unitPrice: unitPrice.toFixed(2),
+            quantity,
+            subtotal: subtotal.toFixed(2),
+          };
+        });
+
+        // Generate unique order number (FR-05)
+        const orderNumber = await generateOrderNumber(tx);
+
+        // Create Order and OrderItems
+        const newOrder = await tx.order.create({
+          data: {
+            orderNumber,
+            customerId: req.session.user!.id,
+            status: "PENDING",
+            totalAmount: grandTotal.toFixed(2),
+            items: {
+              create: lineItemsData.map((li) => ({
+                productId: li.productId,
+                unitPrice: li.unitPrice,
+                quantity: li.quantity,
+                subtotal: li.subtotal,
+              })),
+            },
+          },
+          include: {
+            items: {
+              include: { product: true },
+            },
+          },
+        });
+
+        // Decrement stock atomically (AC-ORD-02)
+        for (const product of products) {
+          const quantity = itemMap.get(product.id)!;
+          await tx.product.update({
+            where: { id: product.id },
+            data: {
+              stockQuantity: { decrement: quantity },
+            },
+          });
+        }
+
+        return newOrder;
+      });
+
+      return res.status(201).json({
+        data: {
+          id: result.id,
+          orderNumber: result.orderNumber,
+          customerId: result.customerId,
+          status: result.status,
+          totalAmount: Number(result.totalAmount).toFixed(2),
+          createdAt: result.createdAt.toISOString(),
+          items: result.items.map((item) => ({
+            id: item.id,
+            productId: item.productId,
+            productName: item.product.name,
+            sku: item.product.sku,
+            unitPrice: Number(item.unitPrice).toFixed(2),
+            quantity: item.quantity,
+            subtotal: Number(item.subtotal).toFixed(2),
+          })),
+        },
+      });
+    } catch (error: any) {
+      if (error.statusCode) {
+        return res.status(error.statusCode).json({
+          error: {
+            code: error.code || "ORDER_ERROR",
+            message: error.message,
+            productId: error.failedProductId,
+            sku: error.failedSku,
+          },
+        });
+      }
+      console.error("Order creation transaction error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to create order." },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Customer Order History & Receipt Details (F-04)
+// ---------------------------------------------------------------------------
+
+// GET /api/orders - List customer's chronological orders (AC-ORD-04)
+app.get(
+  "/api/orders",
+  requireAuth,
+  requireRole("CUSTOMER"),
+  enforcePasswordChangeCheck,
+  async (req: Request, res: Response) => {
+    try {
+      const prisma = getPrisma();
+      const customerId = req.session.user!.id;
+
+      const orders = await prisma.order.findMany({
+        where: { customerId },
+        orderBy: { createdAt: "desc" },
+        include: {
+          items: {
+            include: { product: true },
+          },
+        },
+      });
+
+      const formatted = orders.map((order) => {
+        const totalItemsCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+        return {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          customerId: order.customerId,
+          status: order.status,
+          totalAmount: Number(order.totalAmount).toFixed(2),
+          itemCount: totalItemsCount,
+          lineItemCount: order.items.length,
+          createdAt: order.createdAt.toISOString(),
+          updatedAt: order.updatedAt.toISOString(),
+          items: order.items.map((item) => ({
+            id: item.id,
+            productId: item.productId,
+            productName: item.product.name,
+            sku: item.product.sku,
+            unitPrice: Number(item.unitPrice).toFixed(2),
+            quantity: item.quantity,
+            subtotal: Number(item.subtotal).toFixed(2),
+          })),
+        };
+      });
+
+      return res.status(200).json({ data: formatted });
+    } catch (error) {
+      console.error("Fetch orders error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to fetch orders." },
+      });
+    }
+  }
+);
+
+// GET /api/orders/:id - Customer order receipt detail with historic price preservation (AC-ORD-05, AC-SEC-01)
+app.get(
+  "/api/orders/:id",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({
+          error: { code: "INVALID_ID", message: "Order ID must be an integer." },
+        });
+      }
+
+      const prisma = getPrisma();
+      const order = await prisma.order.findUnique({
+        where: { id },
+        include: {
+          customer: {
+            select: { id: true, name: true, email: true },
+          },
+          items: {
+            include: { product: true },
+          },
+        },
+      });
+
+      if (!order) {
+        return res.status(404).json({
+          error: { code: "ORDER_NOT_FOUND", message: "Order not found." },
+        });
+      }
+
+      // Cross-customer data isolation: Customers can only view their own orders
+      const user = req.session.user!;
+      if (user.role === "CUSTOMER" && order.customerId !== user.id) {
+        return res.status(403).json({
+          error: {
+            code: "FORBIDDEN",
+            message: "Order not found or permission denied.",
+          },
+        });
+      }
+
+      const totalItemsCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+      return res.status(200).json({
+        data: {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          customerId: order.customerId,
+          customerName: order.customer.name,
+          customerEmail: order.customer.email,
+          status: order.status,
+          totalAmount: Number(order.totalAmount).toFixed(2),
+          itemCount: totalItemsCount,
+          lineItemCount: order.items.length,
+          createdAt: order.createdAt.toISOString(),
+          updatedAt: order.updatedAt.toISOString(),
+          items: order.items.map((item) => ({
+            id: item.id,
+            productId: item.productId,
+            productName: item.product.name,
+            sku: item.product.sku,
+            unitPrice: Number(item.unitPrice).toFixed(2), // Authoritative historical preserved unit price
+            quantity: item.quantity,
+            subtotal: Number(item.subtotal).toFixed(2),
+          })),
+        },
+      });
+    } catch (error) {
+      console.error("Fetch order detail error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to fetch order detail." },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Operator Orders Queue (F-05)
+// ---------------------------------------------------------------------------
+app.get(
+  "/api/operator/orders",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    const { status } = req.query;
+    if (status !== undefined && !isOperatorOrderStatus(status)) {
+      return res.status(400).json({
+        error: {
+          code: "INVALID_STATUS",
+          message: "Status must be PENDING, ACCEPTED, or REJECTED. Omit status to list all orders.",
+        },
+      });
+    }
+
+    try {
+      const data = await listOperatorOrders(getPrisma(), status);
+      return res.status(200).json({ data });
+    } catch (error) {
+      console.error("Fetch operator orders error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to fetch operator orders." },
+      });
+    }
+  }
+);
+
+app.patch(
+  "/api/operator/orders/:id/status",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    const id = parseOperatorOrderId(req.params.id);
+    if (id === undefined) {
+      return res.status(400).json({
+        error: { code: "INVALID_ID", message: "Order ID must be a positive 32-bit integer." },
+      });
+    }
+
+    const status = req.body?.status;
+    if (!isFulfillmentStatus(status)) {
+      return res.status(400).json({
+        error: { code: "INVALID_STATUS", message: "Status must be ACCEPTED or REJECTED." },
+      });
+    }
+
+    try {
+      const data = await processOperatorOrder(getPrisma(), id, status);
+      return res.status(200).json({ data });
+    } catch (error) {
+      if (error instanceof OperatorOrderError) {
+        return res.status(error.statusCode).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Process operator order error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to process order." },
+      });
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // 404 Handler
