@@ -1,13 +1,4 @@
 # Requirements to Feature & Sprint Traceability Matrix
-## CPE 334 — TechTent Everyday Electronics Ordering System
-**Document Version**: 1.1.0 | **Date**: November 2026
-
-### Team Information
-> **Fill in the student details below:**
-- **Student 1**: `Pattarapon Sribuathong 67070503434`
-- **Student 2**: `Wai Phyo 67070503487`
-- **Repository URL**: `https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System.git`
-- **Submitted Release Tag / Commit**: `[FILL IN: Release Tag / Commit SHA]`
 
 ---
 
