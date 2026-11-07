@@ -51,6 +51,7 @@ This matrix establishes bidirectional traceability between system requirements (
 | NFR-02 for fulfillment | One Prisma transaction for the claim and stock restoration | Actual PostgreSQL rollback after the first stock write; stock/status/timestamp assertions | PASS for F-05; does not close inherited checkout concurrency findings |
 | NFR-04 | Responsive queue CSS and native rejection dialog | Component tests verify labels, initial/cancel focus and controls | PARTIAL: browser visual layout and native focus trapping not manually verified |
 
-See [the test environment and results](sprints/sprint-1/f05-test-environment.md)
+See [the test environment and results](sprints/sprint-1/f05-test-environment.md),
+[the comprehensive test coverage and results table](sprints/sprint-1/test-coverage-results.md),
 and [integration review](sprints/sprint-1/f05-integration-review.md). Test titles,
 rather than newly invented acceptance IDs, identify the additional F-05 cases.
