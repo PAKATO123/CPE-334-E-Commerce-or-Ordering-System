@@ -90,7 +90,7 @@ failure, did not represent failed tests.
 
 ### Execution safety
 
-See [the disposable database instructions](f05-test-environment.md). Plain backend
+See [the disposable database instructions](f05-test-environment.md) and [the complete test coverage & results table](test-coverage-results.md). Plain backend
 `npm test` refuses to run without an explicit allowlisted test URL and opt-in.
 The disabled-opt-in dry run intentionally exited before collection, not as a
 failed application test. Worker setup and the Prisma factory enforce the target;
