@@ -1,15 +1,5 @@
 # TechTent — Everyday Electronics Ordering System
 
-**CPE 334 | Group Project Deliverable 1 (Semester 1/2026)**
-
-Full-stack Everyday Consumer Electronics & Ordering System built with **React** (TypeScript, Vite), **Express** (Node.js REST API), **Prisma ORM**, and **PostgreSQL**.
-
-### Team Information
-- **Student 1**: `[FILL IN: Student 1 Full Name — Student ID]`
-- **Student 2**: `[FILL IN: Student 2 Full Name — Student ID]`
-- **Repository URL**: `https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System.git`
-- **Submitted Release Tag / Commit**: `[FILL IN: Release Tag / Commit SHA]`
-
 ---
 
 ## 1. Project Overview & Context
