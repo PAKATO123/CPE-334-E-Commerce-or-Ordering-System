@@ -29,7 +29,10 @@ export const app = express();
 // Trust reverse proxy (Cloud Run, ingress, load balancer)
 app.set("trust proxy", 1);
 
-app.use(cors({ origin: true, credentials: true }));
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
+  : true;
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
