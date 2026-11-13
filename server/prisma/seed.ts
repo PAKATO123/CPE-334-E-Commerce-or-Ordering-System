@@ -1,7 +1,8 @@
 import { getPrisma } from "../src/prisma.js";
 import bcrypt from "bcryptjs";
 
-const DEFAULT_PASSWORD_HASH = bcrypt.hashSync("Password123!", 10);
+const DEFAULT_SEED_PASSWORD = process.env.SEED_DEFAULT_PASSWORD || "Password123!";
+const DEFAULT_PASSWORD_HASH = bcrypt.hashSync(DEFAULT_SEED_PASSWORD, 10);
 
 export const USERS = [
   // Customers
