@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import multer from "multer";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import { getPrisma } from "./prisma.js";
@@ -24,17 +26,42 @@ import {
 
 export const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
+// Trust reverse proxy (Cloud Run, ingress, load balancer)
+app.set("trust proxy", 1);
+
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
+  : true;
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
+
+// In-memory file storage for any multipart uploads (never local container disk)
+export const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB in-memory buffer limit
+});
+
+// Configure PostgreSQL session store (falls back to memory store during unit tests)
+const isTest = process.env.NODE_ENV === "test";
+const PgSession = connectPgSimple(session);
+
+const sessionStore = isTest
+  ? undefined
+  : new PgSession({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+    });
+
 app.use(
   session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || "ecommerce-session-secret-cpe334",
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: false,
+      secure: process.env.COOKIE_SECURE === "true",
       sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000,
     },
@@ -44,10 +71,20 @@ app.use(
 app.use(enforcePasswordChangeCheck);
 
 // ---------------------------------------------------------------------------
-// Health API — GET /api/health
+// Health & Readiness APIs — GET /api/health, GET /api/ready
 // ---------------------------------------------------------------------------
 app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok", service: "TechTent API" });
+});
+
+app.get("/api/ready", async (_req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ status: "ready", db: "connected" });
+  } catch {
+    res.status(503).json({ status: "not_ready" });
+  }
 });
 
 // ---------------------------------------------------------------------------
