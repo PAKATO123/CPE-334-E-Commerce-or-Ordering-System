@@ -1,4 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
+import path from "path";
+import fs from "fs";
 import cors from "cors";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -720,6 +722,23 @@ app.patch(
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// Static SPA Serving (Unified Cloud Run Container)
+// ---------------------------------------------------------------------------
+const clientDistCandidates = [
+  path.resolve(process.cwd(), "../client/dist"),
+  path.resolve("/app/client/dist"),
+  path.resolve(process.cwd(), "../../client/dist"),
+];
+const clientDist = clientDistCandidates.find((p) => fs.existsSync(p));
+if (clientDist) {
+  app.use(express.static(clientDist));
+  app.get("*", (req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+}
 
 // ---------------------------------------------------------------------------
 // 404 Handler
