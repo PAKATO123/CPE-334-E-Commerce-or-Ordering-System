@@ -322,8 +322,12 @@ done
 #    Builds the root Dockerfile (run this script from the repo root).
 #    Tag `latest` is only for this first manual setup; deploy.yml uses commit SHAs.
 # ==============================================================================
-run_cmd gcloud builds submit \
+run_cmd gcloud builds submit . \
   --tag "$IMAGE_URI" \
+  --service-account "projects/${PROJECT_ID}/serviceAccounts/techtent-builder@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --gcs-source-staging-dir "gs://${PROJECT_ID}_cloudbuild/source" \
+  --gcs-log-dir "gs://${PROJECT_ID}_cloudbuild/logs" \
+  --region "$REGION" \
   --project "$PROJECT_ID"
 
 # ==============================================================================

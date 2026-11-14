@@ -1,5 +1,13 @@
 # TechTent — Everyday Electronics Ordering System
 
+Production website: [TechTent on Cloud Run](https://techtent-693107188088.asia-southeast1.run.app).
+See the [Lab 5 deployment record and runbook](docs/labs/lab-05/deployment.md#episode-5-deployment-record-and-evidence)
+and [Episode 5 evidence index](docs/labs/lab-05/evidence/episode-5/README.md).
+The operator verified the first manual deployment and administrator login; evidence
+collection is pending. The original full script stopped at Cloud Build, followed by
+separate successful build, migration and service-deployment commands. This is not yet
+proof of automated CI/CD or persistence/rollback verification.
+
 ---
 
 ## 1. Project Overview & Context
@@ -79,7 +87,19 @@ npm run dev
 
 ---
 
-## 4. Default Seeded Accounts (Sprint 1)
+## 4. Local Development/Test Accounts
+
+The table below describes the direct local/test seed's fallback credentials only when
+no custom passwords are supplied; it is NOT a list of production credentials. Demo
+customers/operators are created only with `SEED_DEMO_DATA=true`. Local Compose supplies
+its own configurable password values, so use its configured environment rather than
+assuming this table applies. The administrator is created by default and must change
+its password at first login; rerunning seed preserves existing passwords and flags.
+
+In production, ADMIN_PASSWORD and the optional DEMO_USER_PASSWORD come from generated
+Secret Manager values. Never use local fallbacks against the public service or put live
+passwords in this README. Retrieve/share credentials privately; production demo account
+availability has not been verified in the deployment record.
 
 | Role | Email | Password | Permissions / Scope |
 |---|---|---|---|
