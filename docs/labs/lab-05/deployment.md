@@ -274,6 +274,118 @@ Episode 6 needs no new database or service deployment. Existing Cloud SQL still 
 running; budget alerts are not caps. PR validation consumes runner usage. Do not run bootstrap,
 release or teardown scripts for WIF setup, and do not pause the app during grading.
 
+## Episode 7: automated release preparation and later activation
+
+Reference: Student Guide 7.1-7.7 (pages 81-90), and handout C-06/R-07/R-08.
+Local preparation does not enable deployment or prove external prerequisites. Existing
+workflow logic already covers CI, WIF, image build/push, migration, service update,
+smoke checks and release summary. No deployment scripts need changing for preparation.
+
+### Prerequisite sign-off (verify externally before activation)
+
+- Episode 5: public TechTent service and database readiness work; registry, migration job,
+  runtime identity and persistent secrets exist. The database is running, not paused.
+- Episode 6: WIF condition/subject and scoped deployer permissions match this repository,
+  main, deploy.yml and demo. No service-account keys. Environment demo permits main only
+  and contains the four verified variables listed above. A failed required check blocks
+  main with no bypass, and the teammate-review rule is enforced.
+- Confirm reviewed prerequisites are on GitHub main and staging includes the latest main
+  release history. Local remote-tracking refs alone do not prove this. Preserve unrelated
+  work, especially the root package-lock.json; do not use a blanket add/reset/stash.
+- Deliberately choose optional login smoke: leave BOTH settings absent to skip, or set
+  SMOKE_EMAIL and secret SMOKE_PASSWORD for a dedicated CUSTOMER account whose initial
+  password change is complete. Never use administrator or existing seed/demo credentials.
+- Record who verified each prerequisite and the date, Issue/PR/run links and non-secret
+  resource identifiers. A documentation checkbox is not evidence of live WIF authentication.
+
+### Exact activation change (NOT applied during local preparation)
+
+After explicit approval and prerequisite sign-off, add these two lines under the existing
+`on:` mapping in .github/workflows/deploy.yml, keeping workflow_dispatch and its inputs:
+
+```yaml
+  push:
+    branches: [main]
+```
+
+Update the temporary manual-only comments and the offline trigger-guard expectation in
+`deploy/tests/test_workflow_guards.py` in the same reviewed change. Keep push restricted to
+main; do not add PR, tag, workflow_run or deployment triggers. Preserve main-only job
+conditions, needs:test and the manual-rollback exception, environment demo, contents:read,
+deploy-job-only id-token:write, pinned actions and cancel-in-progress:false concurrency.
+Do not overwrite customized ci-docker.yml. Approved PR merges are guaranteed by the verified
+main ruleset, not by the push trigger itself. Manual dispatch remains available but is a
+real release/rollback operation, not an offline test or an authorization bypass.
+
+### Local/offline validation (no cloud calls)
+
+From the repository root, with Bash and existing server dependencies available:
+
+```bash
+bash -n deploy/deploy.sh deploy/release.sh deploy/teardown.sh
+bash deploy/tests/test_deploy_stub.sh
+bash deploy/tests/test_release_stub.sh
+python -B -m unittest discover -s deploy/tests -p 'test_*.py'
+node server/node_modules/typescript/bin/tsc --noEmit -p server/tsconfig.json
+npm --prefix server run test:unit
+git diff --check
+```
+
+Use npm.cmd in Windows PowerShell and Git Bash if the Windows Bash launcher is blocked.
+Stubs replace gcloud/openssl locally; never run release.sh directly as validation. The new
+standard-library test guards manual-only triggers and token-permission boundaries; it is
+not a general YAML or GitHub expression validator. Review YAML indentation and structure,
+and use an already available actionlint/YAML parser if present; do not install dependencies
+silently. Local success does not prove IAM, WIF, deployed connectivity or database persistence.
+
+### Release procedure and live verification (later authorization required)
+
+1. Finish offline checks and obtain prerequisite sign-off. Submit activation through this
+   feature branch -> reviewed lab-5-staging PR -> reviewed release PR into main, with lab5
+   label and Part of the Episode 7 Issue. Wait for required CI on both PRs; never push main.
+2. The release merge starts Deploy demo automatically. Observe test success before deploy,
+   then WIF authentication, SHA-tagged image build/push, digest resolution, awaited migration
+   job, service update/traffic, public smoke checks and deployment summary. No manual deploy
+   command is needed. The first release is the end-to-end WIF proof.
+3. Verify PASS for health, readiness, HTML and categories; optional login must be PASS or
+   deliberate SKIP. Open the public browser URL and check the TechTent business workflow.
+4. Match the summary's full commit SHA to the release commit and Artifact Registry tag.
+   Match the image digest to the serving Cloud Run revision, which must receive 100% traffic.
+   Verify the corresponding migration execution succeeded. Record direct links and run IDs.
+5. Prove repeatability (7.7): synchronize staging with current main through the agreed team
+   process; create a separate feature/deploy-proof branch and make one small visible UI change.
+   Run tests, then repeat reviewed staging and release PRs. Verify the second automatic run,
+   new serving revision and visible browser change. Do not introduce unrelated features here.
+
+### Failures, costs and evidence
+
+CI/image-resolution/migration failures block service update. Migration failure may still
+leave earlier database changes, so keep migrations additive/backward compatible and inspect
+job logs before retrying. Service update or traffic failures require checking the actual
+serving revision; do not assume nothing changed. Smoke runs AFTER traffic changes: failure
+marks the run red but does not automatically roll back. Inspect revision logs and use only
+an explicitly authorized rollback to a known SHA if needed; rollback does not undo the DB.
+
+For WIF/settings/permission failures, follow Episode 6 recovery above; do not broaden trust,
+grant Owner/Editor or print tokens. After correcting configuration (not code), an authorized
+operator can rerun the failed workflow; code changes go through reviewed PRs. Do not deploy
+while SQL is paused. Concurrency avoids interrupting a running deployment; do not cancel a
+migration to hurry the next release. Existing SQL/storage and later CI/image use may incur
+costs; this local preparation creates no GCP usage and does not stop existing cloud billing.
+
+Evidence checkpoints for C-06 and the repeatable-release rubric:
+
+- Direct Issue, reviewed staging PR, release PR and passing CI links, with specific teammate
+  review and full release SHA; keep both members' contributions traceable.
+- Successful Deploy demo run and smoke output; summary showing SHA, digest, URL and login
+  PASS/SKIP. Prefer links; use screenshots where the link alone does not establish the result.
+- Console screenshots: serving revision with 100% traffic and matching digest; successful
+  migration execution; registry tag matching the release SHA.
+- Second-release run/revision and public URL screenshot showing the visible change. Caption
+  each screenshot with check/requirement, commit/run/URL; hide credentials, tokens and secrets.
+- Keep restart/redeploy persistence and rollback/roll-forward evidence for Episode 8; do not
+  claim that a green smoke check proves persistence. Keep the service available for grading.
+
 ## Release identification and later episodes
 
 Record full GitHub main SHA, successful Cloud Build, image digest and Cloud Run revision
