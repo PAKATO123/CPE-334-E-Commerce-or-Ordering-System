@@ -121,13 +121,20 @@ for MODE in first_run rerun partial job-fail demo; do
   if grep -q '^projects add-iam-policy-binding .*roles/secretmanager.secretAccessor' "$GCLOUD_LOG"; then
     echo 'FAIL: runtime has project-wide secret access'; exit 1
   fi
-  for secret in techtent-database-url techtent-admin-password; do
+  for secret in techtent-database-url techtent-admin-password techtent-session-secret; do
     grep -q "^secrets add-iam-policy-binding $secret .*roles/secretmanager.secretAccessor" "$GCLOUD_LOG"
   done
   if [ "$MODE" = demo ]; then
     grep -q '^secrets add-iam-policy-binding techtent-demo-password ' "$GCLOUD_LOG"
   elif grep -q '^secrets add-iam-policy-binding techtent-demo-password ' "$GCLOUD_LOG"; then
     echo 'FAIL: granted optional demo secret in non-demo mode'; exit 1
+  fi
+  if [ "$MODE" != job-fail ]; then
+    grep -q 'SESSION_SECRET=techtent-session-secret:latest' "$GCLOUD_LOG"
+    grep -q 'COOKIE_SECURE=true' "$GCLOUD_LOG"
+  fi
+  if [ "$MODE" = first_run ]; then
+    test -s "$TEST_STATE_DIR/payload-techtent-session-secret"
   fi
   case "$MODE" in
     first_run)

@@ -1,10 +1,9 @@
 import { getPrisma } from "../src/prisma.js";
 import bcrypt from "bcryptjs";
+import type { PrismaClient } from "@prisma/client";
+import { pathToFileURL } from "node:url";
 
-const DEFAULT_SEED_PASSWORD = process.env.SEED_DEFAULT_PASSWORD || "Password123!";
-const DEFAULT_PASSWORD_HASH = bcrypt.hashSync(DEFAULT_SEED_PASSWORD, 10);
-
-export const USERS = [
+const DEMO_USERS = [
   // Customers
   {
     email: "customer1@example.com",
@@ -12,7 +11,6 @@ export const USERS = [
     role: "CUSTOMER" as const,
     isActive: true,
     mustChangePassword: false,
-    passwordHash: DEFAULT_PASSWORD_HASH,
   },
   {
     email: "customer2@example.com",
@@ -20,7 +18,6 @@ export const USERS = [
     role: "CUSTOMER" as const,
     isActive: true,
     mustChangePassword: false,
-    passwordHash: DEFAULT_PASSWORD_HASH,
   },
   {
     email: "customer3@example.com",
@@ -28,7 +25,6 @@ export const USERS = [
     role: "CUSTOMER" as const,
     isActive: true,
     mustChangePassword: true,
-    passwordHash: DEFAULT_PASSWORD_HASH,
   },
   {
     email: "deactivated@example.com",
@@ -36,7 +32,6 @@ export const USERS = [
     role: "CUSTOMER" as const,
     isActive: false,
     mustChangePassword: false,
-    passwordHash: DEFAULT_PASSWORD_HASH,
   },
   // Operators
   {
@@ -45,16 +40,6 @@ export const USERS = [
     role: "OPERATOR" as const,
     isActive: true,
     mustChangePassword: false,
-    passwordHash: DEFAULT_PASSWORD_HASH,
-  },
-  // Admin
-  {
-    email: "admin@example.com",
-    name: "System Admin",
-    role: "ADMIN" as const,
-    isActive: true,
-    mustChangePassword: false,
-    passwordHash: DEFAULT_PASSWORD_HASH,
   },
 ];
 
@@ -133,51 +118,49 @@ export const PRODUCTS = [
   },
 ];
 
-export async function main() {
-  const prisma = getPrisma();
-  console.log("Seeding baseline users...");
+type SeedEnvironment = Record<string, string | undefined>;
 
-  for (const u of USERS) {
-    await prisma.user.upsert({
-      where: { email: u.email },
-      update: {
-        name: u.name,
-        role: u.role,
-        isActive: u.isActive,
-        mustChangePassword: u.mustChangePassword,
-        passwordHash: u.passwordHash,
-      },
-      create: u,
-    });
+export function seedUsers(env: SeedEnvironment) {
+  const production = env.NODE_ENV === "production";
+  if (env.SEED_DEMO_DATA !== undefined && !["true", "false"].includes(env.SEED_DEMO_DATA)) {
+    throw new Error("SEED_DEMO_DATA must be true or false.");
   }
-  console.log("Baseline users seeded successfully.");
-
-  console.log("Seeding TechTent catalog products (USD)...");
-  for (const p of PRODUCTS) {
-    await prisma.product.upsert({
-      where: { sku: p.sku },
-      update: {
-        name: p.name,
-        category: p.category,
-        description: p.description,
-        price: p.price,
-        stockQuantity: p.stockQuantity,
-        isActive: p.isActive,
-      },
-      create: p,
-    });
+  const demo = env.SEED_DEMO_DATA === "true";
+  if (production && !env.ADMIN_PASSWORD?.trim()) throw new Error("ADMIN_PASSWORD is required in production.");
+  if (production && demo && !env.DEMO_USER_PASSWORD?.trim()) {
+    throw new Error("DEMO_USER_PASSWORD is required when production demo seeding is enabled.");
   }
-  console.log("TechTent catalog seeded successfully.");
+  const adminPassword = env.ADMIN_PASSWORD || "Password123!"; // Local/test only fallback.
+  const users = [{
+    email: "admin@example.com", name: "System Admin", role: "ADMIN" as const,
+    isActive: true, mustChangePassword: true, passwordHash: bcrypt.hashSync(adminPassword, 10),
+  }];
+  return [
+    ...users,
+    ...(demo ? DEMO_USERS.map(user => ({
+      ...user, passwordHash: bcrypt.hashSync(env.DEMO_USER_PASSWORD || "Password123!", 10),
+    })) : []),
+  ];
 }
 
-if (process.env.NODE_ENV !== "test") {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(async () => {
-      const prisma = getPrisma();
-      await prisma.$disconnect();
-    });
+export async function main(env: SeedEnvironment = process.env, client?: Pick<PrismaClient, "user" | "product">) {
+  // Validate all credentials before opening a connection or writing any records.
+  const users = seedUsers(env);
+  const prisma = client ?? getPrisma();
+  for (const user of users) {
+    await prisma.user.upsert({ where: { email: user.email }, update: {}, create: user });
+  }
+  for (const product of PRODUCTS) {
+    await prisma.product.upsert({ where: { sku: product.sku }, update: {}, create: product });
+  }
+  console.log("TechTent seed completed; existing users, inventory and orders preserved.");
+}
+
+// Importing the seed from tests or tooling must never execute it automatically.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(() => {
+    // Driver errors can contain connection details; do not print raw errors.
+    console.error("TechTent seed failed. Check required seed variables and database availability privately.");
+    process.exitCode = 1;
+  }).finally(async () => { await getPrisma().$disconnect(); });
 }

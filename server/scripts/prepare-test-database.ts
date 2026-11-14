@@ -22,7 +22,7 @@ try {
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error("Disposable test schema initialization failed.");
   const { main } = await import("../prisma/seed.js");
-  await main();
+  await main({ ...process.env, SEED_DEMO_DATA: "true" });
 } finally {
   await prisma.$disconnect();
 }

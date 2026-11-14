@@ -31,7 +31,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-techtent}:${POSTGRES_PASSWORD:-techtent}@db:5432/${POSTGRES_DB:-techtent}?schema=public
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-AdminInitial123!}
       DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-DemoInitial123!}
-      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
     command: ["sh", "-c", "npx prisma migrate deploy && npm run prisma:seed"]
 
   server:
@@ -46,7 +46,9 @@ services:
       migrate:
         condition: service_completed_successfully
     environment:
-      NODE_ENV: production
+      # Compose serves plain HTTP locally; Cloud Run sets production with HTTPS.
+      NODE_ENV: development
+      SESSION_SECRET: ${SESSION_SECRET:-techtent-local-only-session-secret}
       TZ: Asia/Bangkok
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-techtent}:${POSTGRES_PASSWORD:-techtent}@db:5432/${POSTGRES_DB:-techtent}?schema=public

@@ -120,6 +120,7 @@ IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${SERVICE_NAME}:l
 # Secret Manager secret names (values are never stored in this repo).
 SECRET_DB_URL="techtent-database-url"
 SECRET_ADMIN_PASS="techtent-admin-password"
+SECRET_SESSION="techtent-session-secret"
 SECRET_DEMO_PASS="techtent-demo-password"
 
 GENERATED_ADMIN_PASSWORD=""
@@ -265,6 +266,20 @@ else
   fi
 fi
 
+# Persistent session signing key: generate once, reuse on every deployment.
+if [ "$DRY_RUN" = "1" ]; then
+  run_cmd gcloud secrets describe "$SECRET_SESSION" --project "$PROJECT_ID"
+  run_cmd gcloud secrets create "$SECRET_SESSION" --replication-policy="automatic" --project "$PROJECT_ID"
+  run_cmd gcloud secrets versions add "$SECRET_SESSION" --data-file=- --project "$PROJECT_ID"
+else
+  if ! gcloud secrets describe "$SECRET_SESSION" --project "$PROJECT_ID" >/dev/null 2>&1; then
+    SESSION_KEY="$(openssl rand -hex 32)"
+    run_cmd gcloud secrets create "$SECRET_SESSION" --replication-policy="automatic" --project "$PROJECT_ID"
+    printf "%s" "$SESSION_KEY" | gcloud secrets versions add "$SECRET_SESSION" --data-file=- --project "$PROJECT_ID"
+    unset SESSION_KEY
+  fi
+fi
+
 # ==============================================================================
 # 8. Optional Demo Password in Secret Manager when --demo is passed
 #    Only used to seed demo users (./deploy/deploy.sh --demo).
@@ -291,7 +306,7 @@ fi
 #    binding is added — keep access limited to this app's own secrets.
 # ------------------------------------------------------------------------------
 # Grant access only to this app's secrets, after they exist.
-RUNTIME_SECRETS=("$SECRET_DB_URL" "$SECRET_ADMIN_PASS")
+RUNTIME_SECRETS=("$SECRET_DB_URL" "$SECRET_ADMIN_PASS" "$SECRET_SESSION")
 if [ "$SEED_DEMO_DATA" = "true" ]; then
   RUNTIME_SECRETS+=("$SECRET_DEMO_PASS")
 fi
@@ -355,8 +370,8 @@ run_cmd gcloud run deploy "$SERVICE_NAME" \
   --allow-unauthenticated \
   --service-account "$SA_EMAIL" \
   --add-cloudsql-instances "$SQL_CONN_NAME" \
-  --set-secrets "DATABASE_URL=${SECRET_DB_URL}:latest" \
-  --set-env-vars "NODE_ENV=production,TZ=Asia/Bangkok" \
+  --set-secrets "DATABASE_URL=${SECRET_DB_URL}:latest,SESSION_SECRET=${SECRET_SESSION}:latest" \
+  --set-env-vars "NODE_ENV=production,TZ=Asia/Bangkok,COOKIE_SECURE=true" \
   --min-instances 0 \
   --max-instances 3 \
   --memory 512Mi \
@@ -379,7 +394,7 @@ printf '%s\n' "Deployment Completed!"
 printf '%s\n' "Service URL    : ${SERVICE_URL}"
 printf '%s\n' "Health Check   : ${SERVICE_URL}/api/health"
 printf '%s\n' "Readiness Check: ${SERVICE_URL}/api/ready"
-printf '%s\n' "Admin Email    : john.smith@example.com (mustChangePassword: true)"
+printf '%s\n' "Admin Email    : admin@example.com (mustChangePassword: true)"
 printf '%s\n' "Admin Password : Stored in Secret Manager: ${SECRET_ADMIN_PASS} (not printed)."
 if [ "$SEED_DEMO_DATA" = "true" ]; then
   printf '%s\n' "Demo Password  : Stored in Secret Manager: ${SECRET_DEMO_PASS} (not printed)."
