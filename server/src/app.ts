@@ -7,6 +7,7 @@ import connectPgSimple from "connect-pg-simple";
 import multer from "multer";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
+import { sessionConfig } from "./utils/sessionConfig.js";
 import { getPrisma } from "./prisma.js";
 import { generateOrderNumber } from "./utils/orderNumber.js";
 import {
@@ -25,6 +26,8 @@ import {
   SessionUser,
   Role,
 } from "./middleware/auth.js";
+
+const sessionSettings = sessionConfig(process.env);
 
 export const app = express();
 
@@ -58,12 +61,12 @@ const sessionStore = isTest
 app.use(
   session({
     store: sessionStore,
-    secret: process.env.SESSION_SECRET || "ecommerce-session-secret-cpe334",
+    secret: sessionSettings.secret,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.COOKIE_SECURE === "true",
+      secure: sessionSettings.secure,
       sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000,
     },
