@@ -386,6 +386,129 @@ Evidence checkpoints for C-06 and the repeatable-release rubric:
 - Keep restart/redeploy persistence and rollback/roll-forward evidence for Episode 8; do not
   claim that a green smoke check proves persistence. Keep the service available for grading.
 
+## Episode 8: database persistence and image rollback
+
+Follow Student Guide 8.1-8.3 (pages 92-95) and handout C-05/R-04. This is a
+verification runbook, not proof that any live check has passed. All record creation,
+workflow dispatch and cloud inspection below require separate live authorization.
+
+### Prerequisites and baseline
+
+- Verify Episode 7 is complete on GitHub main: two successful pipeline releases A and B,
+  with B showing a small visible change absent from A. Local workflow preparation does
+  not meet this prerequisite; the checked-in workflow remains manual-only until activation.
+- Record each full 40-character image tag, immutable digest, workflow run and serving
+  revision from real release evidence. Both images must still exist and support the
+  current schema. Do not substitute the manual bootstrap's mutable latest tag.
+- Verify the public service, running SQL database, WIF, main-only demo environment and
+  its four variables. Retain persistent DATABASE_URL and SESSION_SECRET across restores.
+- Use a CUSTOMER account with password change completed; keep credentials and session
+  cookies private. Agree on a quiet verification interval so other orders or operator
+  actions do not change the observed order or stock unexpectedly.
+
+While B is serving, sign in through /login and select an ordinary active, in-stock product
+in the catalog (/). Do not use SIM-ATOM-FAIL. Record its actual product ID/SKU and stock
+from the UI or GET /api/products/:id. Place one quantity-one order through the cart.
+API equivalent, using the customer's existing cookie session, is POST /api/orders with
+an items array containing the selected actual productId and quantity 1; do not invent IDs.
+If a request times out, inspect order history before retrying: checkout has no idempotency
+key and a blind retry could create another order.
+
+Open /orders and /orders/:id, or authenticated GET /api/orders and GET /api/orders/:id.
+Capture the actual order ID/number, customer identity (sanitized), status, product IDs/SKUs,
+quantities, stored unit prices, subtotals, total and creation time. Record stock immediately
+AFTER checkout as the comparison baseline; do not expect the pre-checkout stock to return.
+Use GET /api/auth/me to check session identity without exposing the cookie. No API currently
+supports an arbitrary persistence marker or order deletion; do not invent those operations.
+
+| Evidence stage | Release SHA/digest/revision | Same order fields | Post-order stock | Session identity | Actual result/run link |
+| --- | --- | --- | --- | --- | --- |
+| Baseline on B | Record actual values | Record actual values | Record actual value | Record privately/sanitize | Not run |
+| Application restart | Record actual environment/version | Compare baseline | Compare baseline | Compare baseline | Not run |
+| Image restore A | Record actual values | Compare baseline | Compare baseline | Compare baseline | Not run |
+| Image restore B | Record actual values | Compare baseline | Compare baseline | Compare baseline | Not run |
+
+Product labels may be read from the current catalog; prioritize stored line-item prices,
+quantities and order identifiers for historical integrity. Record legitimate concurrent
+changes separately rather than labelling every stock/status difference a persistence failure.
+
+### Restore image A, verify, then restore B (live authorization required)
+
+1. Open Actions -> Deploy demo -> Run workflow, select main, and enter A's verified full
+   SHA in image_tag. This is a real release operation; do not dispatch during local checks.
+2. Confirm tests/build are skipped, the migration job is not executed, and deploy/smoke
+   checks pass. Match DEPLOYED_IMAGE in the summary to A's actual registry digest.
+3. In Cloud Run verify the resulting serving revision uses that digest with 100% traffic.
+   Hard-refresh the browser: B's visible change should be absent. Without logging out,
+   check the same order, stored amounts, post-order stock and signed-in identity.
+4. Run the workflow on main with B's verified SHA. It reuses B's existing image with the
+   same skip behavior; confirm digest/traffic, visible change and the baseline data again.
+5. An empty image_tag instead performs a normal current-main release: CI, rebuild,
+   migration and non-destructive seed. Use this only when explicitly choosing to verify
+   that path. A SHA-based roll-forward does not exercise migration/seed again.
+
+The current release.sh does NOT route traffic directly to a named existing Cloud Run
+revision. It resolves the requested SHA tag to an existing image digest, updates the
+service image, then requests --to-latest traffic. Cloud Run may create a new revision;
+record the actual result, never assume the old revision name is restored. This is the
+guide's image-based rollback. Neither the rollback nor SHA-based roll-forward reverses
+Prisma migrations, deletes SQL data, executes seed, or provisions cloud resources.
+The workflow's explicit image restore still smoke-tests the service.
+
+### Separate application restart evidence
+
+Restart, redeployment and image rollback are different events. An A/B workflow run proves
+an image redeployment; it is not separate evidence that the same app process restarted.
+For an approved isolated local stack, record its own baseline and running server identity,
+then use docker compose restart server (no build, migration or volume deletion) and repeat
+the UI/API checks. This restarts only the API container; do not restart/delete the database.
+Label these screenshots LOCAL with the actual commit and environment; never present a local
+order as a production record or local restart as proof of a cloud-instance restart.
+
+If live cloud restart evidence is required, first agree on a supported app-instance
+replacement/restart method and its observable proof after inspecting the actual environment.
+Keep that operation separately authorized; do not improvise SQL restarts, service deletion,
+volume removal, or claim that the deploy script has a restart-only mode. The final C-05
+index must identify which event and environment each before/after pair actually proves.
+
+### Offline validation and limits
+
+Run shell syntax checks, deploy/release stubs, offline Python tests, backend no-emit
+TypeScript validation, unit tests and git diff --check as listed in Episode 7. The release
+stub uses synthetic A/B tags and distinct digests: it asserts exact image lookup/update,
+update-before-traffic ordering, --to-latest selection and no migration/build/seed/provisioning
+for either image restore. It fails closed on unknown cloud operations and blocks direct
+build/seed tools. Its modeled traffic is not real Cloud Run revision verification.
+Existing seed tests use a persistence double; no stub or green health check proves real
+PostgreSQL data or sessions survived. Database-writing integration checks require a
+separately approved disposable database. Do not use the production DB for test suites.
+
+### Recovery, costs and screenshots
+
+Stop on a missing image, failed smoke or unexpected record difference. Inspect workflow,
+revision and migration logs privately before choosing recovery. The application may already
+be receiving traffic when smoke fails; rollback is not automatic. Do not repair evidence by
+re-seeding/resetting SQL, recreating orders or forcing original stock back into the catalog.
+Choose only an available image compatible with the CURRENT schema. Old images with unsafe
+seed behavior must never be run through the normal migration/seed path. Rotating a session
+secret or logging out invalidates session-continuity evidence; document it honestly.
+
+No additional paid resources are needed for the procedure, but running Cloud SQL, image
+storage, pipeline runners and Cloud Run requests still cost. Local stubs cause no GCP usage
+and do not stop existing cloud billing. Keep the service available during grading; do not
+pause SQL during these checks. Preserve the test order unless later cleanup is separately
+approved through supported application behavior.
+
+Evidence checkpoints: direct links to releases A/B and rollback/forward runs; before/after
+order receipts and catalog stock at the same public URL; session continuity without visible
+cookies; skipped test/build and no new migration execution for image restores; summary SHA
+and digest matched to actual serving revision/100% traffic; B's visible change absent on A
+and restored on B; separately labelled restart evidence. Number each screenshot with its
+check (C-05/R-04), actual commit/run/URL/environment and result. Mask passwords, tokens and
+unneeded customer details. Attachments/checksums in the TokTickIT example do not apply:
+TechTent has no supported customer attachment workflow. Close the Episode 8 Issue with
+sanitized results only after live checks actually pass; never fill the table with assumed results.
+
 ## Release identification and later episodes
 
 Record full GitHub main SHA, successful Cloud Build, image digest and Cloud Run revision
