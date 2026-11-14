@@ -155,6 +155,125 @@ when both smoke settings exist; never use admin or seed accounts. It reads profi
    immediately change the password. Later seed runs preserve the new password and flag.
 10. Inspect Console settings and close the Episode 5 Issue with URL and sanitized evidence.
 
+## Episode 6: WIF and the main merge gate
+
+Follow Student Guide V1.1 sections 6.1-6.7 (pages 56-80); the Lab handout takes
+precedence. Local preparation does not prove that external configuration exists.
+Keep the Episode 6 Issue labelled lab5 and link specific teammate reviews.
+
+### Repository facts versus external verification
+
+Verified in this checkout: CI runs on PRs into main and lab-5-staging; its job is
+`test-and-docker`. Deployment is manual-only, restricted by job conditions to main,
+uses environment `demo`, and grants `id-token: write` only to the deploy job.
+`deploy/release.sh` updates existing resources; it does not provision Episode 5 resources.
+No workflow/script edit is needed for Episode 6. Do not dispatch deployment to test WIF.
+
+The resource table above records intended names, not verified cloud state. Before setup,
+verify the Episode 5 public service, database readiness, successful migration job, registry
+and runtime identity, plus the reviewed Episode 5 release on GitHub main. Check the
+project ID/number and region in the Console; cached origin/main may be stale.
+Confirm repository visibility, GitHub admin access, current rulesets, existing IAM bindings,
+and any existing deployer/WIF configuration before creating duplicates.
+
+Read-only GitHub verification commands for a later authorized session:
+
+```bash
+gh repo view PAKATO123/CPE-334-E-Commerce-or-Ordering-System --json nameWithOwner,isPrivate,defaultBranchRef,viewerPermission
+gh api repos/PAKATO123/CPE-334-E-Commerce-or-Ordering-System --jq '{repository_id: .id, owner_id: .owner.id}'
+gh api repos/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/actions/oidc/customization/sub
+gh api repos/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/rulesets
+```
+
+Record verified repository ID, owner ID, exact owner/repository spelling, project number,
+region, runtime account email, registry, deployer email, pool/provider IDs and OIDC subject
+format. An access error is not proof that a resource is absent. Do not copy example IDs.
+
+### Proposed GCP configuration (not executed or verified)
+
+Use the Console sequence in 6.2-6.3 after explicit authorization. Verify/enable IAM Service
+Account Credentials and Security Token Service APIs. Proposed names are `techtent-deployer`,
+`github-actions` (pool) and `github-main` (OIDC provider); reuse only after inspecting them.
+Keep the deployer separate from the existing runtime identity; never create/download JSON keys.
+
+| Principal | Proposed permission | Scope |
+| --- | --- | --- |
+| Deployer | roles/run.developer | Verified application project, as in Guide 6.2 |
+| Deployer | roles/artifactregistry.writer | Application repository only |
+| Deployer | roles/iam.serviceAccountUser | Runtime service account only |
+| Federated repository identity | roles/iam.workloadIdentityUser | Deployer service account only |
+
+Retain runtime Cloud SQL Client and per-secret accessor bindings from Episode 5; verify
+actual policies. Do not add Owner, Editor, database administration, project-wide secret
+access, or Token Creator by default. The deployment identity does not need to read secret values.
+
+Provider issuer: `https://token.actions.githubusercontent.com`. Keep the provider's default
+audience as in the guide. Map `google.subject=assertion.sub` and
+`attribute.repository_id=assertion.repository_id`. Restrict the attribute condition to ALL of:
+
+- verified repository ID and owner ID;
+- `assertion.ref == 'refs/heads/main'`;
+- exact `assertion.workflow_ref` for this repository's `.github/workflows/deploy.yml@refs/heads/main`;
+- exact `assertion.sub` for environment `demo`, using the verified immutable or legacy format.
+
+Bind only the repository-specific principal set to the deployer. Its identifier uses the
+verified project NUMBER and pool ID, ending in `/attribute.repository_id/REPOSITORY_ID`.
+Review the full condition and binding before saving; do not broaden them to solve a mismatch.
+
+### GitHub environment and ruleset (external changes require authorization)
+
+Create/verify environment `demo`; allow deployment from branch main only (no tags).
+The environment name must match deploy.yml and the provider subject condition exactly.
+Add these four environment VARIABLES, not secrets:
+
+| Variable | Verified value to supply |
+| --- | --- |
+| GCP_PROJECT_ID | Actual Episode 5 project ID |
+| GCP_REGION | Actual Episode 5 region |
+| WIF_PROVIDER | Full provider resource name using project number and actual pool/provider IDs |
+| WIF_SERVICE_ACCOUNT | Actual deployer service account email |
+
+No new GitHub secret is required for Episode 6. Leave optional SMOKE_EMAIL/SMOKE_PASSWORD
+unset; do not copy DATABASE_URL, SESSION_SECRET or bootstrap passwords into GitHub.
+
+Create/verify an Active `protect-main` ruleset targeting main explicitly: empty bypass list,
+restrict deletions, block force pushes, require a PR with one teammate approval, and require
+branches to be up to date with the required CI check. Select the check from an actual PR run
+(expected job `test-and-docker`); verify its exact context and source, not just typed text.
+Confirm the public repository/plan actually enforces the ruleset. Authors cannot approve
+their own PRs. These rules are proposed until checked in GitHub Settings.
+
+### Validation, evidence and recovery
+
+1. Locally inspect the documentation diff and unchanged manual-only workflow. Existing
+   offline stubs can check scripts without GCP in a separately authorized validation session.
+2. Verify environment restrictions, four variables, WIF mappings/condition, scoped IAM,
+   empty deployer key list and Active ruleset. This proves configuration, not authentication.
+3. For C-02, after authorization use a separate throwaway branch from verified current
+   GitHub main. Break one test that CI executes, confirm it fails locally, and open a normal
+   PR into main. Capture the failed Required check and blocked merge. Never merge it.
+   Close the PR; remove the throwaway branch as in Guide 6.6, preserving the PR and CI history.
+   Do not put the failing test on this Episode 6 preparation branch.
+4. Close the setup Issue with direct links and numbered, readable screenshots: WIF condition
+   and mappings; scoped account permissions and no keys; demo variables/main restriction;
+   Active ruleset/required check/empty bypass; failed PR with blocked merge. Include commit/run
+   IDs and the check proved. Hide secrets and project numbers per Guide 6.7; never show tokens.
+5. Episode 7 deliberately restores the main push trigger through reviewed PRs only after
+   setup is complete. The first authorized pipeline release proves WIF end to end. Retain
+   current main-only/rollback conditions, pinned actions and minimal token permissions.
+
+If WIF rejects a token, compare repository/owner IDs, main ref, exact workflow path,
+environment, subject format and audience; never print the token or relax the trust condition.
+For permission failures, inspect the failing operation and the intended scoped binding before
+adding rights; allow IAM propagation time. If a check cannot be selected, verify its prior run
+and exact name. If merging is still possible, inspect enforcement, bypasses and target/check
+selection. Recover a mistaken setting through the repository/project administrator, recording
+the correction; do not bypass the gate or push directly to main.
+
+Episode 6 needs no new database or service deployment. Existing Cloud SQL still costs while
+running; budget alerts are not caps. PR validation consumes runner usage. Do not run bootstrap,
+release or teardown scripts for WIF setup, and do not pause the app during grading.
+
 ## Release identification and later episodes
 
 Record full GitHub main SHA, successful Cloud Build, image digest and Cloud Run revision
