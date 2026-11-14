@@ -124,7 +124,10 @@ DRY_RUN=1 PROJECT_ID="$PROJECT_ID" REGION="$REGION" bash deploy/deploy.sh
 Repeat preview after every script change. Expected order: APIs, registry, SQL instance
 and database, runtime identity/IAM, generated secrets, Cloud Build, migration+seed job,
 service. A dry-run completion message is simulation only.
-6. Only after human review and approval, run the manual bootstrap:
+6. Only after human review and approval, run the manual bootstrap. The first live
+   attempt stopped at Cloud Build; the unmodified script is not yet an end-to-end verified
+   procedure. See the deployment record below for the successful manual recovery and
+   custom build-account settings before attempting a repeat run:
 
 ```bash
 PROJECT_ID="$PROJECT_ID" REGION="$REGION" bash deploy/deploy.sh
@@ -154,6 +157,102 @@ when both smoke settings exist; never use admin or seed accounts. It reads profi
    (Guide 5.6). Do not screenshot or paste it anywhere. Sign in as admin@example.com and
    immediately change the password. Later seed runs preserve the new password and flag.
 10. Inspect Console settings and close the Episode 5 Issue with URL and sanitized evidence.
+
+## Episode 5 deployment record and evidence
+
+Status: the first live application deployment is operational based on the operator's
+verified results below. Episode 5.8 evidence collection is still incomplete. These results
+were supplied by the operator; this documentation update did not rerun cloud commands or
+independently inspect the service. See the [evidence index](evidence/episode-5/README.md).
+
+| Item | Verified result supplied by operator |
+| --- | --- |
+| Project / region | pakatopat-project / asia-southeast1 |
+| Public URL | https://techtent-693107188088.asia-southeast1.run.app |
+| Cloud Run service / revision | techtent / techtent-00001-b5s |
+| Revision traffic | 100% |
+| Cloud SQL | techtent-pg, PostgreSQL 16 |
+| Storage auto-increase | Disabled |
+| Migration job / successful execution | techtent-migrate / techtent-migrate-2h7w4 |
+| Migration result | 1/1 tasks succeeded; exit code 0 |
+| GET /api/health | HTTP 200 |
+| GET /api/ready | HTTP 200; database connected |
+| Frontend | Successfully loaded |
+| Administrator login | Successfully tested |
+| Initial administrator password change | Confirmed by operator |
+| Deployed Git commit | `771945036d260dcf7f8150a5bf628e7f7396df83` |
+| Cloud Build ID / status | `17f37a21-c095-4178-992f-1469f76abce8` / SUCCESS |
+| Image digest | `sha256:6acab3358466f55c1c9b988b4fb1cfdb574e6d59f789e73cf0186ab0680e6446` |
+| Cloud Build duration | Approximately 1 minute 32 seconds |
+
+The commit, build ID/status and digest above are operator-verified deployment records.
+Still required: **[PENDING: deployment date/time/timezone and operator]**,
+**[PENDING: Cloud Build run link]**, and **[PENDING: Artifact Registry link]**.
+Do not infer the deployed commit from the current local branch, revision name or mutable tag.
+Screenshots are being collected in a Word report; repository screenshot attachments and
+the report filename/link remain **[PENDING]**. No Word report or screenshot was inspected
+or attached during this documentation update.
+
+### Cloud Build failure and verified manual recovery
+
+The original deploy/deploy.sh attempt failed in its image-build step because the default
+Cloud Build service account was unavailable. The full script did NOT complete successfully
+end-to-end. After the failure, image build, migration job and Cloud Run deployment were
+completed using separate commands. The exact migration/service recovery commands have not
+yet been supplied: **[PENDING: sanitized commands or execution links]**. Do not report this
+as an uninterrupted script run or as an Episode 7 automated pipeline release.
+
+The operator created a dedicated build identity:
+`techtent-builder@pakatopat-project.iam.gserviceaccount.com`.
+The following permissions were configured (historical configuration, not a new IAM action):
+
+| Scope | Configured role |
+| --- | --- |
+| Project pakatopat-project | roles/cloudbuild.builds.builder |
+| Bucket gs://pakatopat-project_cloudbuild | roles/storage.objectAdmin |
+
+This BUILD identity is distinct from the Cloud Run runtime identity techtent-runner and
+any future Episode 6 WIF deployer. Do not grant their roles interchangeably. This records
+the working setup, not a claim that the broad project builder role is the minimum possible.
+Record its actual IAM evidence without exposing credentials or creating service-account keys.
+
+The operator verified this command from the repository root in Cloud Shell. It builds and
+pushes a real image, so it is documentation ONLY here; do not execute it as a local check:
+
+```bash
+gcloud builds submit . \
+  --tag "asia-southeast1-docker.pkg.dev/pakatopat-project/techtent/techtent:latest" \
+  --service-account "projects/pakatopat-project/serviceAccounts/techtent-builder@pakatopat-project.iam.gserviceaccount.com" \
+  --gcs-source-staging-dir "gs://pakatopat-project_cloudbuild/source" \
+  --gcs-log-dir "gs://pakatopat-project_cloudbuild/logs" \
+  --region "asia-southeast1" \
+  --project "pakatopat-project"
+```
+
+The script's Step 9 has since been corrected to pass the explicit account, source/log
+bucket paths and build region using PROJECT_ID/REGION, retaining IMAGE_URI and run_cmd.
+That correction does not establish that the full script has succeeded end-to-end; the
+verified first deployment still used the separate recovery commands above.
+**No deployment script was changed by this documentation update.** Existing account/bucket
+availability, submitter permission to act as the build identity, and actual build IAM must
+be checked before repetition. No change to Episodes 6-8 is implied.
+
+### Outstanding Episode 5.8 evidence
+
+- Add actual sanitized screenshot files and direct links to the evidence index; screenshots
+  are being collected in a Word report, with repository attachments still pending. Capture revision/digest/100% traffic, migration execution,
+  SQL version and disabled storage auto-increase, public frontend and health/readiness results.
+- Record runtime Cloud SQL Client and per-secret access, secret NAMES only, environment
+  sources and actual minimum/maximum instance settings. These were not supplied as verified.
+- The administrator's initial password change is operator-confirmed. Its sanitized supporting
+  evidence remains pending; never capture password retrieval, cookies or secret values.
+- Record the full public smoke_test.py result (including categories); health/readiness and
+  browser/login success alone do not establish that the full smoke script passed.
+- Add **[PENDING: Episode 5 Issue URL, evidence comment and closure status]**, build/registry
+  links and verification timestamps. The deployed commit, build ID and image digest are now
+  recorded above; link supporting proof rather than inventing it.
+- Close Episode 5.8 only after the required evidence is attached/reviewed. Episode 6 WIF,
+  Episode 7 automation and Episode 8 persistence/rollback remain separate unverified live work.
 
 ## Episode 6: WIF and the main merge gate
 
