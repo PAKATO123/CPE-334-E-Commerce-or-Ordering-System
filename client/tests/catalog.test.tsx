@@ -144,7 +144,7 @@ describe("Feature 2: Product Catalog & Category Browsing (F-02)", () => {
     expect(screen.getByText(/Loading TechTent inventory/i)).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText("Everyday Tech Essentials")).toBeInTheDocument();
+      expect(screen.getByText("Discover Your Next Tech Upgrade")).toBeInTheDocument();
       expect(screen.getByText("Flagship Pro Smartphone 256GB")).toBeInTheDocument();
       expect(screen.getByText("Wireless Mechanical Keyboard")).toBeInTheDocument();
       expect(screen.getByText("All Items")).toBeInTheDocument();

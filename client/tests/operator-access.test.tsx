@@ -38,7 +38,7 @@ describe("F-05 real application route protection", () => {
   });
   it("redirects customers to catalog without fetching operator data", async () => {
     renderRoute("CUSTOMER");
-    await screen.findByText("Everyday Tech Essentials");
+    await screen.findByText("Discover Your Next Tech Upgrade");
     expect(api.getOperatorOrdersApi).not.toHaveBeenCalled();
     expect(screen.queryByRole("link", { name: "Operator Queue" })).not.toBeInTheDocument();
   });
@@ -51,7 +51,7 @@ describe("F-05 real application route protection", () => {
   });
   it("prevents operators from entering customer history", async () => {
     renderRoute("OPERATOR", "/orders");
-    await screen.findByText("Everyday Tech Essentials");
+    await screen.findByText("Discover Your Next Tech Upgrade");
     expect(api.getMyOrdersApi).not.toHaveBeenCalled();
   });
   it("preserves customer history and cart navigation", async () => {

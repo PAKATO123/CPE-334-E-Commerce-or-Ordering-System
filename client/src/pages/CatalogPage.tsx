@@ -220,7 +220,7 @@ export const CatalogPage: React.FC = () => {
       {/* Hero / Header Section */}
       <div style={{ marginBottom: "28px" }}>
         <h1 style={{ fontSize: "28px", fontWeight: 700, color: "#1A2E22", marginBottom: "6px" }}>
-          Everyday Tech Essentials
+          Discover Your Next Tech Upgrade
         </h1>
         <p style={{ color: "#718096", fontSize: "15px", margin: 0 }}>
           High-performance electronics, smartphones, displays, and accessories with real-time stock availability.
