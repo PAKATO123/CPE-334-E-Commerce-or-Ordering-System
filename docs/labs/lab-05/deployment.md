@@ -95,9 +95,9 @@ Seed command: `npm run prisma:seed`. Startup: `node dist/index.js`.
 2. Release prerequisite fixes through reviewed PRs: feature branch -> lab-5-staging -> main.
    Both PRs need passing CI and specific teammate review. Label Issues/PRs lab5.
    Never push local main directly. Preserve any unrelated root lockfile changes.
-3. The deployment workflow is temporarily manual-only: no push trigger. Do not dispatch it
-   during Episode 5; bootstrap from Cloud Shell. Restore automatic main pushes only in
-   Episode 7 after Episode 6 WIF, demo environment and merge gate are ready.
+3. During Episode 5 the deployment workflow was manual-only. Do not dispatch it for
+   bootstrap; use Cloud Shell. Episode 7 now adds automatic main pushes locally;
+   releasing that change requires WIF, demo environment and merge-gate sign-off.
 4. Open Cloud Shell in the correct account. Verify active account, project and billing
    as described in Guide Episodes 1 and 5. Set explicit non-secret values:
 
@@ -263,7 +263,8 @@ Keep the Episode 6 Issue labelled lab5 and link specific teammate reviews.
 ### Repository facts versus external verification
 
 Verified in this checkout: CI runs on PRs into main and lab-5-staging; its job is
-`test-and-docker`. Deployment is manual-only, restricted by job conditions to main,
+`test-and-docker`. At Episode 6 preparation deployment was manual-only; Episode 7 adds
+automatic main pushes. Deployment remains restricted by job conditions to main,
 uses environment `demo`, and grants `id-token: write` only to the deploy job.
 `deploy/release.sh` updates existing resources; it does not provision Episode 5 resources.
 No workflow/script edit is needed for Episode 6. Do not dispatch deployment to test WIF.
@@ -344,7 +345,7 @@ their own PRs. These rules are proposed until checked in GitHub Settings.
 
 ### Validation, evidence and recovery
 
-1. Locally inspect the documentation diff and unchanged manual-only workflow. Existing
+1. For Episode 6, inspect the documentation diff and then-manual-only workflow. Existing
    offline stubs can check scripts without GCP in a separately authorized validation session.
 2. Verify environment restrictions, four variables, WIF mappings/condition, scoped IAM,
    empty deployer key list and Active ruleset. This proves configuration, not authentication.
@@ -373,12 +374,39 @@ Episode 6 needs no new database or service deployment. Existing Cloud SQL still 
 running; budget alerts are not caps. PR validation consumes runner usage. Do not run bootstrap,
 release or teardown scripts for WIF setup, and do not pause the app during grading.
 
-## Episode 7: automated release preparation and later activation
+## Episode 7: automated release implementation and live verification
 
 Reference: Student Guide 7.1-7.7 (pages 81-90), and handout C-06/R-07/R-08.
-Local preparation does not enable deployment or prove external prerequisites. Existing
+The local implementation enables main pushes once released; editing it locally does not
+deploy anything or prove external prerequisites. Existing
 workflow logic already covers CI, WIF, image build/push, migration, service update,
-smoke checks and release summary. No deployment scripts need changing for preparation.
+smoke checks and release summary. No release or smoke script replacement is needed.
+
+### Official reference comparison (15 November 2026)
+
+Compared against `02_lab5-starter-kit (1).zip`, Student Guide V1.1 Episodes 7
+(pages 81-91) and 8 (pages 92-95), and `01_SE_Lab_5_updated (1).pdf`.
+The handout's R-01 through R-12 take precedence. Document commands are reference
+instructions, not authorization to commit, push, merge, dispatch or change GCP.
+
+| Area | Official reference versus TechTent | Decision |
+| --- | --- | --- |
+| Release stages (7.1) | Same reusable CI, WIF, SHA image build/push, digest, migration, deploy, smoke and summary | Preserve existing jobs and pinned actions |
+| Names (7.2) | TokTickIT examples become techtent / techtent-migrate and techtent/techtent image; project pakatopat-project, region asia-southeast1 from demo variables | Already adapted; live names/settings still need verification |
+| Login (7.3) | Kit uses bearer tokens; TechTent uses cookie sessions and CUSTOMER role | Retain cookie jar and dedicated-account checks; both smoke settings or neither |
+| Categories | Kit expects a bare list; TechTent returns an object containing data: string[] | Retain TechTent predicate and tests |
+| CI (7.4) | Guide explicitly says not to overwrite customized ci-docker.yml or README | Preserve staging/main PR checks, disposable DB safety gates and backend unit tests |
+| Automatic release (7.4) | Kit includes push/branches: [main]; TechTent had deliberately disabled it | Restore main-only push, retain workflow_dispatch; include workflow guards in CI |
+| Release proof (7.5-7.7) | Successful A, matching revision/digest/job/registry, then separate visible B release | Needs live execution; defer B's UI change until A passes |
+| Rollback/forward (8.1-8.3) | release.sh matches kit after resource-name adaptation; full image SHA skips tests/build/migration/seed | Preserve script and stronger existing A/B offline tests; live checks pending |
+| Persistence | Guide's tickets/attachments are examples; TechTent stores orders, inventory and sessions in PostgreSQL | Compare same order, stored totals, stock and session across A/B; uploads/checksums not applicable |
+| Required versus recommended | Handout R-04 requires restart AND redeploy persistence; Section 5 recommends rollback | Keep separate restart evidence; rollback alone does not complete C-05 |
+
+No missing starter file requires copying. The production Dockerfile also matches the
+kit after name adaptation; its development dependencies are an inherited hardening
+opportunity, not an Episode 7 blocker. Preserve existing migration/seed and session-secret
+safeguards. The deleted Episode 5 evidence index still needs a valid replacement link
+when the team's evidence location is known.
 
 ### Prerequisite sign-off (verify externally before activation)
 
@@ -397,18 +425,18 @@ smoke checks and release summary. No deployment scripts need changing for prepar
 - Record who verified each prerequisite and the date, Issue/PR/run links and non-secret
   resource identifiers. A documentation checkbox is not evidence of live WIF authentication.
 
-### Exact activation change (NOT applied during local preparation)
+### Activation change (implemented locally; not released)
 
-After explicit approval and prerequisite sign-off, add these two lines under the existing
-`on:` mapping in .github/workflows/deploy.yml, keeping workflow_dispatch and its inputs:
+The existing `on:` mapping in .github/workflows/deploy.yml now includes these lines,
+alongside workflow_dispatch and its image_tag input:
 
 ```yaml
   push:
     branches: [main]
 ```
 
-Update the temporary manual-only comments and the offline trigger-guard expectation in
-`deploy/tests/test_workflow_guards.py` in the same reviewed change. Keep push restricted to
+The manual-only comments and trigger-guard expectation have been updated, and CI now
+discovers all deploy Python tests (`test_*.py`). Keep push restricted to
 main; do not add PR, tag, workflow_run or deployment triggers. Preserve main-only job
 conditions, needs:test and the manual-rollback exception, environment demo, contents:read,
 deploy-job-only id-token:write, pinned actions and cancel-in-progress:false concurrency.
@@ -432,7 +460,8 @@ git diff --check
 
 Use npm.cmd in Windows PowerShell and Git Bash if the Windows Bash launcher is blocked.
 Stubs replace gcloud/openssl locally; never run release.sh directly as validation. The new
-standard-library test guards manual-only triggers and token-permission boundaries; it is
+standard-library tests guard main-only triggers, CI inclusion, release gates, queued
+deployment and token-permission boundaries; this is
 not a general YAML or GitHub expression validator. Review YAML indentation and structure,
 and use an already available actionlint/YAML parser if present; do not install dependencies
 silently. Local success does not prove IAM, WIF, deployed connectivity or database persistence.
@@ -495,7 +524,7 @@ workflow dispatch and cloud inspection below require separate live authorization
 
 - Verify Episode 7 is complete on GitHub main: two successful pipeline releases A and B,
   with B showing a small visible change absent from A. Local workflow preparation does
-  not meet this prerequisite; the checked-in workflow remains manual-only until activation.
+  not meet this prerequisite; the locally enabled push trigger must first be released.
 - Record each full 40-character image tag, immutable digest, workflow run and serving
   revision from real release evidence. Both images must still exist and support the
   current schema. Do not substitute the manual bootstrap's mutable latest tag.

@@ -1,8 +1,7 @@
-"""Offline Episode 7 preparation guards; stdlib only, never executes YAML.
+"""Offline Episode 7 workflow guards; stdlib only, never executes YAML.
 
 This deliberately checks the repository's block-style trigger/permission mappings,
-not general YAML syntax or GitHub expression semantics. Update the manual-only
-expectation deliberately when Episode 7 activation is approved.
+not general YAML syntax or GitHub expression semantics.
 """
 from pathlib import Path
 import re
@@ -31,18 +30,33 @@ def mapping_keys(text, heading, indent=0):
     return keys
 
 
-class WorkflowPreparationGuards(unittest.TestCase):
+class WorkflowGuards(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.workflow = (ROOT / ".github/workflows/deploy.yml").read_text(encoding="utf-8")
 
-    def test_automatic_triggers_remain_disabled_until_activation(self):
-        self.assertEqual(mapping_keys(self.workflow, "on"), ["workflow_dispatch"])
+    def test_automatic_release_is_main_only_with_manual_restore(self):
+        self.assertEqual(mapping_keys(self.workflow, "on"), ["push", "workflow_dispatch"])
+        self.assertEqual(mapping_keys(self.workflow, "push", 2), ["branches"])
+        self.assertRegex(self.workflow, r"(?m)^    branches: \[main\]$")
+        self.assertEqual(mapping_keys(self.workflow, "workflow_dispatch", 2), ["inputs"])
+        self.assertEqual(mapping_keys(self.workflow, "inputs", 4), ["image_tag"])
 
-    def test_trigger_guard_detects_accidental_push_enablement(self):
-        candidate = self.workflow.replace("on:\n", "on:\n  push:\n    branches: [main]\n", 1)
-        self.assertIn("push", mapping_keys(candidate, "on"))
-        self.assertNotEqual(mapping_keys(candidate, "on"), ["workflow_dispatch"])
+    def test_custom_ci_checks_staging_and_runs_workflow_guards(self):
+        ci = (ROOT / ".github/workflows/ci-docker.yml").read_text(encoding="utf-8")
+        self.assertRegex(ci, r"(?m)^    branches: \[main, lab-5-staging\]$")
+        self.assertIn("workflow_call", mapping_keys(ci, "on"))
+        self.assertIn("unittest discover -s deploy/tests -p 'test_*.py'", ci)
+
+    def test_releases_are_queued_and_main_only(self):
+        self.assertRegex(self.workflow, r"(?m)^  cancel-in-progress: false$")
+        test_job, deploy_job = self.workflow.split("\n  deploy:\n", 1)
+        self.assertIn("if: github.ref == 'refs/heads/main' && !inputs.image_tag", test_job)
+        self.assertIn("needs: test", deploy_job)
+        self.assertIn("github.ref == 'refs/heads/main'", deploy_job)
+        self.assertIn("needs.test.result == 'success'", deploy_job)
+        self.assertIn("github.event_name == 'workflow_dispatch' && inputs.image_tag != '' && needs.test.result == 'skipped'", deploy_job)
+        self.assertIn("if: env.ROLLBACK != 'true'", deploy_job)
 
     def test_oidc_permission_is_scoped_to_deploy_job(self):
         self.assertEqual(mapping_keys(self.workflow, "permissions"), ["contents"])
