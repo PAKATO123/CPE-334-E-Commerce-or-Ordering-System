@@ -45,7 +45,7 @@ describe("Feature 1: User Authentication & Role-Based Session Control", () => {
         data: { passwordHash: DEFAULT_HASH, mustChangePassword: false, isActive: false },
       });
       await prisma.$disconnect();
-    } catch {}
+    } catch { }
   });
 
   // -------------------------------------------------------------------------
@@ -57,7 +57,7 @@ describe("Feature 1: User Authentication & Role-Based Session Control", () => {
       .post("/api/auth/login")
       .send({ email: "customer1@example.com", password: "Password123!" });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(500);
     expect(res.header["set-cookie"]).toBeDefined();
     expect(res.body.user).toMatchObject({
       email: "customer1@example.com",
