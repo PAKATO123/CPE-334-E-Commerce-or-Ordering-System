@@ -2,8 +2,7 @@
 # Deploy demo — automatic deployment to Google Cloud Run
 # ##############################################################################
 # WHAT THIS WORKFLOW DOES
-#   Temporarily manual-only for Episode 5; enable main pushes in Episode 7.
-#   When deliberately dispatched on main it:
+#   On every push to `main` (or a manual run on main) it:
 #     1) runs the CI workflow (ci-docker.yml, job `test-and-docker`) first,
 #     2) authenticates to Google Cloud WITHOUT a key file (Workload Identity
 #        Federation),
@@ -54,11 +53,12 @@ name: Deploy demo
 
 # ------------------------------------------------------------------------------
 # Triggers
-#   push to main      : disabled until Episode 7
+#   push to main      : automatic deploy after the reviewed release merge
 #   workflow_dispatch : manual run; `image_tag` = rollback target (optional)
 # ------------------------------------------------------------------------------
 on:
-  # Episode 5: manual bootstrap only. Restore push/branches: [main] in Episode 7.
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       image_tag:
