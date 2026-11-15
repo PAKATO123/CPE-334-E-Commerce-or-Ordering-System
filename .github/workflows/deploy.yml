@@ -129,7 +129,11 @@ jobs:
           WIF_PROVIDER: ${{ vars.WIF_PROVIDER }}
           WIF_SERVICE_ACCOUNT: ${{ vars.WIF_SERVICE_ACCOUNT }}
         run: |
+          # Trim accidental surrounding whitespace in the GitHub region variable.
+          REGION="${REGION#"${REGION%%[![:space:]]*}"}"
+          REGION="${REGION%"${REGION##*[![:space:]]}"}"
           test -n "$PROJECT_ID" && test -n "$REGION"
+          printf 'REGION=%s\n' "$REGION" >> "$GITHUB_ENV"
           test -n "$WIF_PROVIDER" && test -n "$WIF_SERVICE_ACCOUNT"
           [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]] || { echo 'Image tag must be a full 40-character commit SHA.'; exit 1; }
 
