@@ -115,7 +115,7 @@ jobs:
           bash -n deploy/deploy.sh deploy/teardown.sh deploy/release.sh
           bash deploy/tests/test_deploy_stub.sh
           bash deploy/tests/test_release_stub.sh
-          python3 -m unittest discover -s deploy/tests -p 'test_smoke.py'
+          python3 -B -m unittest discover -s deploy/tests -p 'test_*.py'
 
       # ------------------------------------------------------------------------
       # 4. Backend: install -> migrate -> seed -> test

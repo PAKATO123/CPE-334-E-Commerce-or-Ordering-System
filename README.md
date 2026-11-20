@@ -1,12 +1,9 @@
 # TechTent — Everyday Electronics Ordering System
 
 Production website: [TechTent on Cloud Run](https://techtent-693107188088.asia-southeast1.run.app).
-See the [Lab 5 deployment record and runbook](docs/labs/lab-05/deployment.md#episode-5-deployment-record-and-evidence)
-and [Episode 5 evidence index](docs/labs/lab-05/evidence/episode-5/README.md).
-The operator verified the first manual deployment and administrator login; evidence
-collection is pending. The original full script stopped at Cloud Build, followed by
-separate successful build, migration and service-deployment commands. This is not yet
-proof of automated CI/CD or persistence/rollback verification.
+The [Lab 5 deployment runbook](docs/labs/lab-05/deployment.md) records the manual
+bootstrap, two successful automatic releases, and the remaining persistence and
+rollback checks.
 
 ---
 

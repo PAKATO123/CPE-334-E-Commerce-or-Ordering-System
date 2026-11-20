@@ -1,38 +1,49 @@
 # TechTent Lab 5 deployment
 
-Reference: Lab 5 updated handout (required R-01 through R-12; takes precedence)
-and Student Guide V1.1, Episodes 1-8, especially 5.0-5.8. This document contains
-instructions for a human operator, not authorization for an agent to change cloud resources.
+This runbook follows Sections 4.3, 8 and 12 of the updated Lab 5 handout. Evidence
+for grading belongs in the team PDF. Record the command or run link, result and
+tested commit for each check.
 
-## Stack and resource names
+## Deployment status
 
-TechTent uses React/Vite, Express cookie sessions, Prisma 5 and PostgreSQL 16.
-The root Dockerfile serves UI and API together on port 3000 as the non-root node user.
-Compose uses separate Nginx/API containers for local HTTP; Cloud Run uses the unified image.
-The database and PostgreSQL session store keep data outside the app container.
+Reviewed against GitHub `main` at `e17f136` on 18 November 2026.
+Unauthenticated requests to the [Cloud Run service](https://techtent-693107188088.asia-southeast1.run.app)
+returned HTTP 403 for `/`, `/api/health` and `/api/ready`. Check the service's
+public access settings and rerun the public smoke test before live verification
+or submission. The successful release results below are from 15 November 2026.
 
-| Setting/resource | Value |
+| Episode | Status |
 | --- | --- |
-| Project ID | pakatopat-project |
-| Region | asia-southeast1 |
-| Artifact Registry repository / image | techtent / techtent |
-| Cloud SQL instance / database / user | techtent-pg / techtent / techtent |
-| Cloud Run service / migration job | techtent / techtent-migrate |
-| Runtime identity | techtent-runner@pakatopat-project.iam.gserviceaccount.com |
-| Database URL secret | techtent-database-url |
-| Bootstrap administrator password secret | techtent-admin-password |
-| Optional demo password secret | techtent-demo-password |
-| Persistent session signing secret | techtent-session-secret |
-| Git integration branch | lab-5-staging |
+| 5 - Manual deployment | The operator reported a successful deployment after manual Cloud Build recovery. The evidence checklist remains open. |
+| 6 - Keyless authentication and merge protection | GitHub Actions authenticated successfully through WIF, and GitHub lists the [active main ruleset](https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/rules/27308438). Complete the configuration evidence checklist below. |
+| 7 - Automated releases | Two successful automatic releases are recorded below, with immutable image digests and Cloud Run revisions. |
+| 8 - Persistence and image rollback | Public access must pass before the live checks. Order, inventory, session, restart and A/B restore evidence is still outstanding. |
+
+## Stack and changes from the reference
+
+TechTent uses React and Vite, an Express API, Prisma 5, and PostgreSQL 16. The root
+Dockerfile serves the UI and API from one non-root container on port 3000 in Cloud
+Run. Local Compose uses separate Nginx, API and database containers. PostgreSQL
+stores catalog, inventory, orders and sessions outside the application container.
+
+TechTent adapts the starter smoke test to its cookie-based customer login and
+the `{data: string[]}` categories response. For persistence checks, compare an
+order, its stored totals, catalog stock and the customer session. The example
+ticket and attachment workflow does not apply to TechTent.
 
 ## Configuration sources
 
-All examples are placeholders or local-only values. Never copy a real secret into
-Git, AI chat, Issues, screenshots, logs or the final evidence PDF.
+Use the tracked [server/.env.example](../../../server/.env.example) and
+[client/.env.example](../../../client/.env.example) for local configuration.
+Their values are local defaults or placeholders. Keep real credentials and
+populated `.env` files out of Git and screenshots. Production secrets come from
+Secret Manager. The optional smoke password comes from GitHub Actions secrets.
+
+### Environment variable table
 
 | Variable | Secret? | Source and purpose |
 | --- | --- | --- |
-| PROJECT_ID / REGION | No | Operator shell; explicit project and region above; deployment scripts |
+| PROJECT_ID / REGION | No | Cloud Shell exports for manual bootstrap and GitHub Actions mappings for automated releases. See GCP resources below. |
 | DRY_RUN | No | Set exactly 1 for deploy/teardown preview; never run release.sh as a preview |
 | NODE_ENV | No | Deployment sets production; local Compose uses development for HTTP cookies |
 | PORT | No | Cloud Run/container port 3000; backend binds 0.0.0.0 |
@@ -51,119 +62,138 @@ Git, AI chat, Issues, screenshots, logs or the final evidence PDF.
 | SERVICE_NAME / MIGRATE_JOB_NAME | No | release.sh defaults match resource table |
 | GITHUB_ENV | No | GitHub-provided file for release outputs; not application configuration |
 | GCP_PROJECT_ID / GCP_REGION | No | Episode 6 GitHub demo environment, mapped to PROJECT_ID / REGION |
-| WIF_PROVIDER / WIF_SERVICE_ACCOUNT | No | Episode 6 keyless deployer configuration; no JSON keys |
+| WIF_PROVIDER / WIF_SERVICE_ACCOUNT | No | GitHub demo variables containing the full workload identity provider resource name and deployer service account email |
 | SMOKE_EMAIL / SMOKE_PASSWORD | Password only | Optional dedicated CUSTOMER account; variable plus GitHub secret; leave BOTH unset for Episode 5 |
 
-Seed behavior: admin@example.com is created with mustChangePassword=true. Existing
-accounts (including changed passwords, roles and flags), catalog rows, inventory and
-orders are never updated by seed. Products are inserted only when missing. Demo
-accounts require SEED_DEMO_DATA=true; --demo generates their credentials privately.
-Do not use seed to repair or rotate existing credentials. Production rejects missing
-admin credentials and missing enabled-demo credentials before writing any records.
-Local/test-only fallback passwords must never be used for production.
+### GitHub Actions demo environment
 
-The session secret is reused, never regenerated by a normal deployment or release.
-Production startup rejects a missing/short key. Trust proxy is enabled for Cloud Run
-HTTPS; cookies are HttpOnly, SameSite=Lax and Secure in production. CORS is optional
-and unchanged: the unified frontend requires no cross-origin API traffic. A separate
-frontend origin would require an explicit deployment design and allowlist review.
+In GitHub, open **Settings > Environments > demo**. Restrict deployment to
+`main` and configure these non-secret variables.
 
-## Local build and validation
+| Variable | Value or source |
+| --- | --- |
+| `GCP_PROJECT_ID` | `pakatopat-project` |
+| `GCP_REGION` | `asia-southeast1` |
+| `WIF_PROVIDER` | Full provider resource name from GCP Workload Identity Federation |
+| `WIF_SERVICE_ACCOUNT` | `techtent-deployer@pakatopat-project.iam.gserviceaccount.com` |
 
-From a clean clone install server/client dependencies with npm ci in each directory.
-Run `npm --prefix server run build` and `npm --prefix client run build`.
-Run `npm --prefix server run test:unit`, `npm --prefix client test`,
-`python -B -m unittest discover -s deploy/tests -p test_smoke.py`, and
-`bash deploy/tests/test_deploy_stub.sh` plus `bash deploy/tests/test_release_stub.sh`.
-Stub tests replace gcloud and openssl and contact no cloud service. They use temporary files.
-Integration tests require the explicitly approved disposable database described in
-`docs/sprints/sprint-1/f05-test-environment.md`; never run them against development or cloud data.
-CI explicitly enables demo seeding for this disposable database.
+Set the optional `SMOKE_EMAIL` variable and `SMOKE_PASSWORD` secret together
+for a dedicated CUSTOMER account, or leave both unset. Capture the four variable names in the GitHub settings evidence.
 
-Local containers: `docker compose up --build -d`, then `docker compose ps -a`.
-Migrate must exit 0; db/server/client must run. Set SEED_DEMO_DATA=true explicitly
-if customer/operator demo accounts are needed locally. Open http://localhost:5173.
-Do not delete the existing database volume to test persistence.
-The root production image is built with `docker build -t techtent:local .`.
-Migration command inside the server image: `npx prisma migrate deploy`.
-Seed command: `npm run prisma:seed`. Startup: `node dist/index.js`.
+## Build, test and run
 
-## Episode 5 manual sequence (human execution only)
+From the repository root, run the application builds and offline checks. On
+Windows use Git Bash for the shell commands and `npm.cmd` in PowerShell.
 
-1. Finish Episode 1: active personal-account trial, billing enabled, teammate access,
-   and alerts-only budget. If trial is pending, stop before real deployment.
-2. Release prerequisite fixes through reviewed PRs: feature branch -> lab-5-staging -> main.
-   Both PRs need passing CI and specific teammate review. Label Issues/PRs lab5.
-   Never push local main directly. Preserve any unrelated root lockfile changes.
-3. The deployment workflow is temporarily manual-only: no push trigger. Do not dispatch it
-   during Episode 5; bootstrap from Cloud Shell. Restore automatic main pushes only in
-   Episode 7 after Episode 6 WIF, demo environment and merge gate are ready.
-4. Open Cloud Shell in the correct account. Verify active account, project and billing
-   as described in Guide Episodes 1 and 5. Set explicit non-secret values:
+```bash
+npm --prefix server ci
+npm --prefix client ci
+npm --prefix server run build
+npm --prefix client run build
+npm --prefix server run test:unit
+npm --prefix client test
+python -B -m unittest discover -s deploy/tests -p 'test_*.py'
+bash deploy/tests/test_deploy_stub.sh
+bash deploy/tests/test_release_stub.sh
+```
+
+The shell stubs do not contact GCP. Run database integration tests only with
+the [disposable test database](../../sprints/sprint-1/f05-test-environment.md).
+
+### C-03 clean-clone container evidence
+
+From a fresh checkout, review the root [Dockerfile](../../../Dockerfile) and
+[.dockerignore](../../../.dockerignore). Build the production image and start the
+local application and PostgreSQL stack with Docker Compose.
+
+```bash
+docker build --no-cache -t techtent:local .
+docker compose build --no-cache
+docker compose up -d
+docker compose ps -a
+curl --fail http://localhost:3000/api/ready
+```
+
+The root build produces the unified Cloud Run image. The local Compose stack uses
+separate client and API images. Verify that `db` is healthy, `migrate` exited 0,
+and `server` and `client` are running. Open http://localhost:5173.
+
+Capture the checked-out commit, successful fresh build, Compose status, and
+readiness response for C-03. Link the tracked
+[server/.env.example](../../../server/.env.example) and
+[client/.env.example](../../../client/.env.example) alongside the
+[environment variable table](#environment-variable-table). The examples use local defaults and
+placeholders. Production credentials come from Secret Manager. Include only
+variable names and sources in the evidence.
+
+### Migrate and seed
+
+Compose starts `migrate` after PostgreSQL becomes healthy and starts the API
+after migration and seed succeed. To run the same commands explicitly against
+the intended local database, set the server environment from its example and
+run from `server/`.
+
+```bash
+npx prisma migrate deploy
+npm run prisma:seed
+```
+
+The first seed creates `admin@example.com` with a mandatory password change.
+Seed inserts missing rows and preserves existing accounts, password changes,
+catalog entries, stock and orders. Set `SEED_DEMO_DATA=true` to create demo
+accounts. Keep the production session key stable across releases.
+
+## GCP resources
+
+| Setting/resource | Value |
+| --- | --- |
+| Project ID | pakatopat-project |
+| Region | asia-southeast1 |
+| Artifact Registry repository / image | techtent / techtent |
+| Cloud SQL instance / database / user | techtent-pg / techtent / techtent |
+| Cloud Run service / migration job | techtent / techtent-migrate |
+| Runtime identity | techtent-runner@pakatopat-project.iam.gserviceaccount.com |
+| Cloud Build identity | techtent-builder@pakatopat-project.iam.gserviceaccount.com |
+| GitHub Actions deployer | techtent-deployer@pakatopat-project.iam.gserviceaccount.com |
+| Database URL secret | techtent-database-url |
+| Bootstrap administrator password secret | techtent-admin-password |
+| Optional demo password secret | techtent-demo-password |
+| Persistent session signing secret | techtent-session-secret |
+| Git integration branch | lab-5-staging |
+
+## First-time deployment
+
+Use Cloud Shell after confirming billing, the project, and the dedicated build
+identity. Preview the bootstrap from the root of the reviewed checkout before
+running it.
 
 ```bash
 export PROJECT_ID=pakatopat-project
 export REGION=asia-southeast1
-gcloud auth list --filter=status:ACTIVE --format='value(account)'
-gcloud config set project "$PROJECT_ID"
-gcloud config get-value project
-git clone https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System.git
-cd CPE-334-E-Commerce-or-Ordering-System
-git rev-parse HEAD
-```
-
-Confirm the clone matches the reviewed release on GitHub main. For an existing clone,
-inspect its state before updating; never overwrite local work.
-
-5. Preview and review all commands before creating anything:
-
-```bash
-DRY_RUN=1 PROJECT_ID="$PROJECT_ID" REGION="$REGION" bash deploy/deploy.sh
-```
-
-Repeat preview after every script change. Expected order: APIs, registry, SQL instance
-and database, runtime identity/IAM, generated secrets, Cloud Build, migration+seed job,
-service. A dry-run completion message is simulation only.
-6. Only after human review and approval, run the manual bootstrap. The first live
-   attempt stopped at Cloud Build; the unmodified script is not yet an end-to-end verified
-   procedure. See the deployment record below for the successful manual recovery and
-   custom build-account settings before attempting a repeat run:
-
-```bash
-PROJECT_ID="$PROJECT_ID" REGION="$REGION" bash deploy/deploy.sh
-```
-
-Use --demo only when explicitly choosing demo accounts. Do not cancel normal provisioning.
-If migration fails, read the printed job-log instructions first; do not blindly rerun.
-7. Immediately disable storage auto-increase (Guide 5.4):
-
-```bash
+DRY_RUN=1 bash deploy/deploy.sh
+bash deploy/deploy.sh
 gcloud sql instances patch techtent-pg --no-storage-auto-increase --project "$PROJECT_ID"
 ```
 
-8. Verify the service and database (Guide 5.5):
+Bootstrap creates the infrastructure, builds the unified image, waits for the
+migration and seed job, and deploys the service. Step 9 uses
+`techtent-builder@pakatopat-project.iam.gserviceaccount.com` and the
+`pakatopat-project_cloudbuild` staging and logging bucket. Confirm that the
+submitter can act as that identity and that the builder can access the bucket.
+The original bootstrap stopped at Cloud Build. The operator finished the
+build, migration, and deployment with separate commands.
+
+Verify the public URL, then change the bootstrap administrator password
+privately. Keep Secret Manager values out of the evidence.
 
 ```bash
-export SERVICE_URL=$(gcloud run services describe techtent --region "$REGION" --project "$PROJECT_ID" --format='value(status.url)')
-curl --fail "$SERVICE_URL/api/health"
-curl --fail "$SERVICE_URL/api/ready"
-python3 deploy/smoke_test.py "$SERVICE_URL"
+SERVICE_URL=$(gcloud run services describe techtent --region "$REGION" --project "$PROJECT_ID" --format='value(status.url)')
+python deploy/smoke_test.py "$SERVICE_URL"
 ```
 
-Open the public URL without Google sign-in. Smoke checks health, readiness, HTML and
-nonempty TechTent `{data: [category strings]}`. Optional cookie-based login runs only
-when both smoke settings exist; never use admin or seed accounts. It reads profile and logs out.
-9. Privately retrieve the bootstrap password from techtent-admin-password in Secret Manager
-   (Guide 5.6). Do not screenshot or paste it anywhere. Sign in as admin@example.com and
-   immediately change the password. Later seed runs preserve the new password and flag.
-10. Inspect Console settings and close the Episode 5 Issue with URL and sanitized evidence.
+### Episode 5 deployment record and evidence
 
-## Episode 5 deployment record and evidence
-
-Status: the first live application deployment is operational based on the operator's
-verified results below. Episode 5.8 evidence collection is still incomplete. These results
-were supplied by the operator; this documentation update did not rerun cloud commands or
-independently inspect the service. See the [evidence index](evidence/episode-5/README.md).
+The following results were supplied by the operator.
 
 | Item | Verified result supplied by operator |
 | --- | --- |
@@ -185,463 +215,88 @@ independently inspect the service. See the [evidence index](evidence/episode-5/R
 | Image digest | `sha256:6acab3358466f55c1c9b988b4fb1cfdb574e6d59f789e73cf0186ab0680e6446` |
 | Cloud Build duration | Approximately 1 minute 32 seconds |
 
-The commit, build ID/status and digest above are operator-verified deployment records.
-Still required: **[PENDING: deployment date/time/timezone and operator]**,
-**[PENDING: Cloud Build run link]**, and **[PENDING: Artifact Registry link]**.
-Do not infer the deployed commit from the current local branch, revision name or mutable tag.
-Screenshots are being collected in a Word report; repository screenshot attachments and
-the report filename/link remain **[PENDING]**. No Word report or screenshot was inspected
-or attached during this documentation update.
+For the team PDF, add the original deployment timestamp and operator,
+screenshots or links for the revision and SQL settings, and sanitized evidence
+of the administrator password change and manual smoke run.
 
-### Cloud Build failure and verified manual recovery
+## Release procedure
 
-The original deploy/deploy.sh attempt failed in its image-build step because the default
-Cloud Build service account was unavailable. The full script did NOT complete successfully
-end-to-end. After the failure, image build, migration job and Cloud Run deployment were
-completed using separate commands. The exact migration/service recovery commands have not
-yet been supplied: **[PENDING: sanitized commands or execution links]**. Do not report this
-as an uninterrupted script run or as an Episode 7 automated pipeline release.
+1. Link the Lab 5 Issue to a feature PR into `lab-5-staging`. Get a specific
+   teammate review and a passing CI check.
+2. Open a release PR from `lab-5-staging` into `main`. The active
+   [protect-main ruleset](https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/rules/27308438)
+   requires one approval and the strict `test-and-docker` check. The
+   [merge-gate test PR](https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/pull/39)
+   records a failed check. GitHub also reports conflicts and review required on
+   that PR, so distinguish those conditions when documenting C-02.
+3. Once the PR merges, [Deploy demo](../../../.github/workflows/deploy.yml)
+   runs CI and uses Workload Identity Federation to authenticate. It builds and
+   pushes the full-SHA image, resolves the digest, waits for migration and seed,
+   updates Cloud Run traffic, and runs the public smoke tests.
+4. In the run summary, record the full image tag, digest, URL and smoke result.
+   In Cloud Run, find the revision receiving traffic and match its image digest
+   to the summary and Artifact Registry. For an image restore, use the input
+   SHA in the summary as the released commit. The workflow itself runs from
+   `main`.
 
-The operator created a dedicated build identity:
-`techtent-builder@pakatopat-project.iam.gserviceaccount.com`.
-The following permissions were configured (historical configuration, not a new IAM action):
+If migration fails, inspect the job logs before retrying. Smoke checks run after
+traffic moves, so a failed smoke check can leave the new revision serving.
+Inspect the actual serving revision before choosing a recovery.
 
-| Scope | Configured role |
-| --- | --- |
-| Project pakatopat-project | roles/cloudbuild.builds.builder |
-| Bucket gs://pakatopat-project_cloudbuild | roles/storage.objectAdmin |
+### Verified release record
 
-This BUILD identity is distinct from the Cloud Run runtime identity techtent-runner and
-any future Episode 6 WIF deployer. Do not grant their roles interchangeably. This records
-the working setup, not a claim that the broad project builder role is the minimum possible.
-Record its actual IAM evidence without exposing credentials or creating service-account keys.
+GitHub Actions logs show both releases passed CI, keyless authentication,
+migration and deployment, and public smoke checks. Cloud Run reported 100%
+traffic to the revision shown for each run at deployment time. Health, readiness,
+HTML and categories passed on both runs. Optional customer login was skipped on both.
 
-The operator verified this command from the repository root in Cloud Shell. It builds and
-pushes a real image, so it is documentation ONLY here; do not execute it as a local check:
+| Release | Merge and workflow run | Full image tag | Image digest | Cloud Run revision | Migration execution | Catalog heading in release source |
+| --- | --- | --- | --- | --- | --- | --- |
+| A | [PR #43](https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/pull/43) / [Deploy demo](https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/actions/runs/43718682232) | `717257ff78a5af4b575d2aeac98ca788370da2f8` | `sha256:b5dccdcffe6bdabb7ce7fcdfba9e37ecc2b6f49441148e02996ff561c1f0ad31` | `techtent-00002-brv` | `techtent-migrate-lgr27` | Everyday Tech Essentials |
+| B | [PR #45](https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/pull/45) / [Deploy demo](https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/actions/runs/43722710791) | `e17f136f543a4ebb1336e36b714149bb598febc8` | `sha256:a33e30cbfd7ba8dc82d22d47cb810ee5ebfdd5248ca2d0ec0060e2f302772cfc` | `techtent-00003-smt` | `techtent-migrate-lh2dh` | Discover Your Next Tech Upgrade |
 
-```bash
-gcloud builds submit . \
-  --tag "asia-southeast1-docker.pkg.dev/pakatopat-project/techtent/techtent:latest" \
-  --service-account "projects/pakatopat-project/serviceAccounts/techtent-builder@pakatopat-project.iam.gserviceaccount.com" \
-  --gcs-source-staging-dir "gs://pakatopat-project_cloudbuild/source" \
-  --gcs-log-dir "gs://pakatopat-project_cloudbuild/logs" \
-  --region "asia-southeast1" \
-  --project "pakatopat-project"
-```
+The [first automatic attempt](https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/actions/runs/43711691833)
+authenticated successfully, then failed before migration because whitespace in the region
+produced an invalid Docker tag. [PR #42](https://github.com/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/pull/42)
+added region trimming. The next two releases passed.
 
-The script's Step 9 has since been corrected to pass the explicit account, source/log
-bucket paths and build region using PROJECT_ID/REGION, retaining IMAGE_URI and run_cmd.
-That correction does not establish that the full script has succeeded end-to-end; the
-verified first deployment still used the separate recovery commands above.
-**No deployment script was changed by this documentation update.** Existing account/bucket
-availability, submitter permission to act as the build identity, and actual build IAM must
-be checked before repetition. No change to Episodes 6-8 is implied.
+## Persistence and image restore
 
-### Outstanding Episode 5.8 evidence
+1. Confirm public readiness, that B is serving, and that both recorded digests
+   remain available and compatible with the current schema.
+2. Sign in as a customer, place one order for an active, in-stock product, and
+   record the order ID, quantities, stored prices, total, post-checkout stock and
+   signed-in identity. Mask private details.
+3. Capture an application restart separately. For an isolated Compose stack,
+   take a baseline in that stack, run `docker compose restart server`, and
+   compare the order, stock and session. Label the environment in the evidence.
+   For a cloud restart, confirm the operation and record its observable result.
+4. In **Actions > Deploy demo > Run workflow**, choose `main` and enter the
+   full A SHA as `image_tag`. Verify smoke results, serving revision and digest,
+   100% traffic, the A catalog heading, and the same order, stock and session.
+5. Dispatch the full B SHA and repeat the checks. Verify B's catalog heading is
+   back. SHA-based restores reuse existing images and skip tests, image build,
+   migration and seed. They leave the database schema in place.
 
-- Add actual sanitized screenshot files and direct links to the evidence index; screenshots
-  are being collected in a Word report, with repository attachments still pending. Capture revision/digest/100% traffic, migration execution,
-  SQL version and disabled storage auto-increase, public frontend and health/readiness results.
-- Record runtime Cloud SQL Client and per-secret access, secret NAMES only, environment
-  sources and actual minimum/maximum instance settings. These were not supplied as verified.
-- The administrator's initial password change is operator-confirmed. Its sanitized supporting
-  evidence remains pending; never capture password retrieval, cookies or secret values.
-- Record the full public smoke_test.py result (including categories); health/readiness and
-  browser/login success alone do not establish that the full smoke script passed.
-- Add **[PENDING: Episode 5 Issue URL, evidence comment and closure status]**, build/registry
-  links and verification timestamps. The deployed commit, build ID and image digest are now
-  recorded above; link supporting proof rather than inventing it.
-- Close Episode 5.8 only after the required evidence is attached/reviewed. Episode 6 WIF,
-  Episode 7 automation and Episode 8 persistence/rollback remain separate unverified live work.
-
-## Episode 6: WIF and the main merge gate
-
-Follow Student Guide V1.1 sections 6.1-6.7 (pages 56-80); the Lab handout takes
-precedence. Local preparation does not prove that external configuration exists.
-Keep the Episode 6 Issue labelled lab5 and link specific teammate reviews.
-
-### Repository facts versus external verification
-
-Verified in this checkout: CI runs on PRs into main and lab-5-staging; its job is
-`test-and-docker`. Deployment is manual-only, restricted by job conditions to main,
-uses environment `demo`, and grants `id-token: write` only to the deploy job.
-`deploy/release.sh` updates existing resources; it does not provision Episode 5 resources.
-No workflow/script edit is needed for Episode 6. Do not dispatch deployment to test WIF.
-
-The resource table above records intended names, not verified cloud state. Before setup,
-verify the Episode 5 public service, database readiness, successful migration job, registry
-and runtime identity, plus the reviewed Episode 5 release on GitHub main. Check the
-project ID/number and region in the Console; cached origin/main may be stale.
-Confirm repository visibility, GitHub admin access, current rulesets, existing IAM bindings,
-and any existing deployer/WIF configuration before creating duplicates.
-
-Read-only GitHub verification commands for a later authorized session:
-
-```bash
-gh repo view PAKATO123/CPE-334-E-Commerce-or-Ordering-System --json nameWithOwner,isPrivate,defaultBranchRef,viewerPermission
-gh api repos/PAKATO123/CPE-334-E-Commerce-or-Ordering-System --jq '{repository_id: .id, owner_id: .owner.id}'
-gh api repos/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/actions/oidc/customization/sub
-gh api repos/PAKATO123/CPE-334-E-Commerce-or-Ordering-System/rulesets
-```
-
-Record verified repository ID, owner ID, exact owner/repository spelling, project number,
-region, runtime account email, registry, deployer email, pool/provider IDs and OIDC subject
-format. An access error is not proof that a resource is absent. Do not copy example IDs.
-
-### Proposed GCP configuration (not executed or verified)
-
-Use the Console sequence in 6.2-6.3 after explicit authorization. Verify/enable IAM Service
-Account Credentials and Security Token Service APIs. Proposed names are `techtent-deployer`,
-`github-actions` (pool) and `github-main` (OIDC provider); reuse only after inspecting them.
-Keep the deployer separate from the existing runtime identity; never create/download JSON keys.
-
-| Principal | Proposed permission | Scope |
+| Stage | Evidence to capture | Status |
 | --- | --- | --- |
-| Deployer | roles/run.developer | Verified application project, as in Guide 6.2 |
-| Deployer | roles/artifactregistry.writer | Application repository only |
-| Deployer | roles/iam.serviceAccountUser | Runtime service account only |
-| Federated repository identity | roles/iam.workloadIdentityUser | Deployer service account only |
+| Baseline on B | Order, post-checkout stock, session and B revision | Pending |
+| App restart | Restart event and the same records afterward | Pending |
+| Restore A | Run link, revision, A heading and the same records | Pending |
+| Restore B | Run link, revision, B heading and the same records | Pending |
 
-Retain runtime Cloud SQL Client and per-secret accessor bindings from Episode 5; verify
-actual policies. Do not add Owner, Editor, database administration, project-wide secret
-access, or Token Creator by default. The deployment identity does not need to read secret values.
+## Submission evidence
 
-Provider issuer: `https://token.actions.githubusercontent.com`. Keep the provider's default
-audience as in the guide. Map `google.subject=assertion.sub` and
-`attribute.repository_id=assertion.repository_id`. Restrict the attribute condition to ALL of:
-
-- verified repository ID and owner ID;
-- `assertion.ref == 'refs/heads/main'`;
-- exact `assertion.workflow_ref` for this repository's `.github/workflows/deploy.yml@refs/heads/main`;
-- exact `assertion.sub` for environment `demo`, using the verified immutable or legacy format.
-
-Bind only the repository-specific principal set to the deployer. Its identifier uses the
-verified project NUMBER and pool ID, ending in `/attribute.repository_id/REPOSITORY_ID`.
-Review the full condition and binding before saving; do not broaden them to solve a mismatch.
-
-### GitHub environment and ruleset (external changes require authorization)
-
-Create/verify environment `demo`; allow deployment from branch main only (no tags).
-The environment name must match deploy.yml and the provider subject condition exactly.
-Add these four environment VARIABLES, not secrets:
-
-| Variable | Verified value to supply |
+| Check | Evidence for the team PDF |
 | --- | --- |
-| GCP_PROJECT_ID | Actual Episode 5 project ID |
-| GCP_REGION | Actual Episode 5 region |
-| WIF_PROVIDER | Full provider resource name using project number and actual pool/provider IDs |
-| WIF_SERVICE_ACCOUNT | Actual deployer service account email |
+| C-01 | Passing PR CI run and test summary |
+| C-02 | Failing test PR, required check and blocked merge |
+| C-03 | Dockerfile, .dockerignore, .env.example, variable table, fresh build and running app/database output |
+| C-04 | Public customer sign-in, checkout, and a rule rejection or access restriction |
+| C-05 | Same order and inventory after both application restart and redeploy |
+| C-06 | Issue, teammate review, staging PR, release PR, CI, deployment run and serving commit |
 
-No new GitHub secret is required for Episode 6. Leave optional SMOKE_EMAIL/SMOKE_PASSWORD
-unset; do not copy DATABASE_URL, SESSION_SECRET or bootstrap passwords into GitHub.
-
-Create/verify an Active `protect-main` ruleset targeting main explicitly: empty bypass list,
-restrict deletions, block force pushes, require a PR with one teammate approval, and require
-branches to be up to date with the required CI check. Select the check from an actual PR run
-(expected job `test-and-docker`); verify its exact context and source, not just typed text.
-Confirm the public repository/plan actually enforces the ruleset. Authors cannot approve
-their own PRs. These rules are proposed until checked in GitHub Settings.
-
-### Validation, evidence and recovery
-
-1. Locally inspect the documentation diff and unchanged manual-only workflow. Existing
-   offline stubs can check scripts without GCP in a separately authorized validation session.
-2. Verify environment restrictions, four variables, WIF mappings/condition, scoped IAM,
-   empty deployer key list and Active ruleset. This proves configuration, not authentication.
-3. For C-02, after authorization use a separate throwaway branch from verified current
-   GitHub main. Break one test that CI executes, confirm it fails locally, and open a normal
-   PR into main. Capture the failed Required check and blocked merge. Never merge it.
-   Close the PR; remove the throwaway branch as in Guide 6.6, preserving the PR and CI history.
-   Do not put the failing test on this Episode 6 preparation branch.
-4. Close the setup Issue with direct links and numbered, readable screenshots: WIF condition
-   and mappings; scoped account permissions and no keys; demo variables/main restriction;
-   Active ruleset/required check/empty bypass; failed PR with blocked merge. Include commit/run
-   IDs and the check proved. Hide secrets and project numbers per Guide 6.7; never show tokens.
-5. Episode 7 deliberately restores the main push trigger through reviewed PRs only after
-   setup is complete. The first authorized pipeline release proves WIF end to end. Retain
-   current main-only/rollback conditions, pinned actions and minimal token permissions.
-
-If WIF rejects a token, compare repository/owner IDs, main ref, exact workflow path,
-environment, subject format and audience; never print the token or relax the trust condition.
-For permission failures, inspect the failing operation and the intended scoped binding before
-adding rights; allow IAM propagation time. If a check cannot be selected, verify its prior run
-and exact name. If merging is still possible, inspect enforcement, bypasses and target/check
-selection. Recover a mistaken setting through the repository/project administrator, recording
-the correction; do not bypass the gate or push directly to main.
-
-Episode 6 needs no new database or service deployment. Existing Cloud SQL still costs while
-running; budget alerts are not caps. PR validation consumes runner usage. Do not run bootstrap,
-release or teardown scripts for WIF setup, and do not pause the app during grading.
-
-## Episode 7: automated release preparation and later activation
-
-Reference: Student Guide 7.1-7.7 (pages 81-90), and handout C-06/R-07/R-08.
-Local preparation does not enable deployment or prove external prerequisites. Existing
-workflow logic already covers CI, WIF, image build/push, migration, service update,
-smoke checks and release summary. No deployment scripts need changing for preparation.
-
-### Prerequisite sign-off (verify externally before activation)
-
-- Episode 5: public TechTent service and database readiness work; registry, migration job,
-  runtime identity and persistent secrets exist. The database is running, not paused.
-- Episode 6: WIF condition/subject and scoped deployer permissions match this repository,
-  main, deploy.yml and demo. No service-account keys. Environment demo permits main only
-  and contains the four verified variables listed above. A failed required check blocks
-  main with no bypass, and the teammate-review rule is enforced.
-- Confirm reviewed prerequisites are on GitHub main and staging includes the latest main
-  release history. Local remote-tracking refs alone do not prove this. Preserve unrelated
-  work, especially the root package-lock.json; do not use a blanket add/reset/stash.
-- Deliberately choose optional login smoke: leave BOTH settings absent to skip, or set
-  SMOKE_EMAIL and secret SMOKE_PASSWORD for a dedicated CUSTOMER account whose initial
-  password change is complete. Never use administrator or existing seed/demo credentials.
-- Record who verified each prerequisite and the date, Issue/PR/run links and non-secret
-  resource identifiers. A documentation checkbox is not evidence of live WIF authentication.
-
-### Exact activation change (NOT applied during local preparation)
-
-After explicit approval and prerequisite sign-off, add these two lines under the existing
-`on:` mapping in .github/workflows/deploy.yml, keeping workflow_dispatch and its inputs:
-
-```yaml
-  push:
-    branches: [main]
-```
-
-Update the temporary manual-only comments and the offline trigger-guard expectation in
-`deploy/tests/test_workflow_guards.py` in the same reviewed change. Keep push restricted to
-main; do not add PR, tag, workflow_run or deployment triggers. Preserve main-only job
-conditions, needs:test and the manual-rollback exception, environment demo, contents:read,
-deploy-job-only id-token:write, pinned actions and cancel-in-progress:false concurrency.
-Do not overwrite customized ci-docker.yml. Approved PR merges are guaranteed by the verified
-main ruleset, not by the push trigger itself. Manual dispatch remains available but is a
-real release/rollback operation, not an offline test or an authorization bypass.
-
-### Local/offline validation (no cloud calls)
-
-From the repository root, with Bash and existing server dependencies available:
-
-```bash
-bash -n deploy/deploy.sh deploy/release.sh deploy/teardown.sh
-bash deploy/tests/test_deploy_stub.sh
-bash deploy/tests/test_release_stub.sh
-python -B -m unittest discover -s deploy/tests -p 'test_*.py'
-node server/node_modules/typescript/bin/tsc --noEmit -p server/tsconfig.json
-npm --prefix server run test:unit
-git diff --check
-```
-
-Use npm.cmd in Windows PowerShell and Git Bash if the Windows Bash launcher is blocked.
-Stubs replace gcloud/openssl locally; never run release.sh directly as validation. The new
-standard-library test guards manual-only triggers and token-permission boundaries; it is
-not a general YAML or GitHub expression validator. Review YAML indentation and structure,
-and use an already available actionlint/YAML parser if present; do not install dependencies
-silently. Local success does not prove IAM, WIF, deployed connectivity or database persistence.
-
-### Release procedure and live verification (later authorization required)
-
-1. Finish offline checks and obtain prerequisite sign-off. Submit activation through this
-   feature branch -> reviewed lab-5-staging PR -> reviewed release PR into main, with lab5
-   label and Part of the Episode 7 Issue. Wait for required CI on both PRs; never push main.
-2. The release merge starts Deploy demo automatically. Observe test success before deploy,
-   then WIF authentication, SHA-tagged image build/push, digest resolution, awaited migration
-   job, service update/traffic, public smoke checks and deployment summary. No manual deploy
-   command is needed. The first release is the end-to-end WIF proof.
-3. Verify PASS for health, readiness, HTML and categories; optional login must be PASS or
-   deliberate SKIP. Open the public browser URL and check the TechTent business workflow.
-4. Match the summary's full commit SHA to the release commit and Artifact Registry tag.
-   Match the image digest to the serving Cloud Run revision, which must receive 100% traffic.
-   Verify the corresponding migration execution succeeded. Record direct links and run IDs.
-5. Prove repeatability (7.7): synchronize staging with current main through the agreed team
-   process; create a separate feature/deploy-proof branch and make one small visible UI change.
-   Run tests, then repeat reviewed staging and release PRs. Verify the second automatic run,
-   new serving revision and visible browser change. Do not introduce unrelated features here.
-
-### Failures, costs and evidence
-
-CI/image-resolution/migration failures block service update. Migration failure may still
-leave earlier database changes, so keep migrations additive/backward compatible and inspect
-job logs before retrying. Service update or traffic failures require checking the actual
-serving revision; do not assume nothing changed. Smoke runs AFTER traffic changes: failure
-marks the run red but does not automatically roll back. Inspect revision logs and use only
-an explicitly authorized rollback to a known SHA if needed; rollback does not undo the DB.
-
-For WIF/settings/permission failures, follow Episode 6 recovery above; do not broaden trust,
-grant Owner/Editor or print tokens. After correcting configuration (not code), an authorized
-operator can rerun the failed workflow; code changes go through reviewed PRs. Do not deploy
-while SQL is paused. Concurrency avoids interrupting a running deployment; do not cancel a
-migration to hurry the next release. Existing SQL/storage and later CI/image use may incur
-costs; this local preparation creates no GCP usage and does not stop existing cloud billing.
-
-Evidence checkpoints for C-06 and the repeatable-release rubric:
-
-- Direct Issue, reviewed staging PR, release PR and passing CI links, with specific teammate
-  review and full release SHA; keep both members' contributions traceable.
-- Successful Deploy demo run and smoke output; summary showing SHA, digest, URL and login
-  PASS/SKIP. Prefer links; use screenshots where the link alone does not establish the result.
-- Console screenshots: serving revision with 100% traffic and matching digest; successful
-  migration execution; registry tag matching the release SHA.
-- Second-release run/revision and public URL screenshot showing the visible change. Caption
-  each screenshot with check/requirement, commit/run/URL; hide credentials, tokens and secrets.
-- Keep restart/redeploy persistence and rollback/roll-forward evidence for Episode 8; do not
-  claim that a green smoke check proves persistence. Keep the service available for grading.
-
-## Episode 8: database persistence and image rollback
-
-Follow Student Guide 8.1-8.3 (pages 92-95) and handout C-05/R-04. This is a
-verification runbook, not proof that any live check has passed. All record creation,
-workflow dispatch and cloud inspection below require separate live authorization.
-
-### Prerequisites and baseline
-
-- Verify Episode 7 is complete on GitHub main: two successful pipeline releases A and B,
-  with B showing a small visible change absent from A. Local workflow preparation does
-  not meet this prerequisite; the checked-in workflow remains manual-only until activation.
-- Record each full 40-character image tag, immutable digest, workflow run and serving
-  revision from real release evidence. Both images must still exist and support the
-  current schema. Do not substitute the manual bootstrap's mutable latest tag.
-- Verify the public service, running SQL database, WIF, main-only demo environment and
-  its four variables. Retain persistent DATABASE_URL and SESSION_SECRET across restores.
-- Use a CUSTOMER account with password change completed; keep credentials and session
-  cookies private. Agree on a quiet verification interval so other orders or operator
-  actions do not change the observed order or stock unexpectedly.
-
-While B is serving, sign in through /login and select an ordinary active, in-stock product
-in the catalog (/). Do not use SIM-ATOM-FAIL. Record its actual product ID/SKU and stock
-from the UI or GET /api/products/:id. Place one quantity-one order through the cart.
-API equivalent, using the customer's existing cookie session, is POST /api/orders with
-an items array containing the selected actual productId and quantity 1; do not invent IDs.
-If a request times out, inspect order history before retrying: checkout has no idempotency
-key and a blind retry could create another order.
-
-Open /orders and /orders/:id, or authenticated GET /api/orders and GET /api/orders/:id.
-Capture the actual order ID/number, customer identity (sanitized), status, product IDs/SKUs,
-quantities, stored unit prices, subtotals, total and creation time. Record stock immediately
-AFTER checkout as the comparison baseline; do not expect the pre-checkout stock to return.
-Use GET /api/auth/me to check session identity without exposing the cookie. No API currently
-supports an arbitrary persistence marker or order deletion; do not invent those operations.
-
-| Evidence stage | Release SHA/digest/revision | Same order fields | Post-order stock | Session identity | Actual result/run link |
-| --- | --- | --- | --- | --- | --- |
-| Baseline on B | Record actual values | Record actual values | Record actual value | Record privately/sanitize | Not run |
-| Application restart | Record actual environment/version | Compare baseline | Compare baseline | Compare baseline | Not run |
-| Image restore A | Record actual values | Compare baseline | Compare baseline | Compare baseline | Not run |
-| Image restore B | Record actual values | Compare baseline | Compare baseline | Compare baseline | Not run |
-
-Product labels may be read from the current catalog; prioritize stored line-item prices,
-quantities and order identifiers for historical integrity. Record legitimate concurrent
-changes separately rather than labelling every stock/status difference a persistence failure.
-
-### Restore image A, verify, then restore B (live authorization required)
-
-1. Open Actions -> Deploy demo -> Run workflow, select main, and enter A's verified full
-   SHA in image_tag. This is a real release operation; do not dispatch during local checks.
-2. Confirm tests/build are skipped, the migration job is not executed, and deploy/smoke
-   checks pass. Match DEPLOYED_IMAGE in the summary to A's actual registry digest.
-3. In Cloud Run verify the resulting serving revision uses that digest with 100% traffic.
-   Hard-refresh the browser: B's visible change should be absent. Without logging out,
-   check the same order, stored amounts, post-order stock and signed-in identity.
-4. Run the workflow on main with B's verified SHA. It reuses B's existing image with the
-   same skip behavior; confirm digest/traffic, visible change and the baseline data again.
-5. An empty image_tag instead performs a normal current-main release: CI, rebuild,
-   migration and non-destructive seed. Use this only when explicitly choosing to verify
-   that path. A SHA-based roll-forward does not exercise migration/seed again.
-
-The current release.sh does NOT route traffic directly to a named existing Cloud Run
-revision. It resolves the requested SHA tag to an existing image digest, updates the
-service image, then requests --to-latest traffic. Cloud Run may create a new revision;
-record the actual result, never assume the old revision name is restored. This is the
-guide's image-based rollback. Neither the rollback nor SHA-based roll-forward reverses
-Prisma migrations, deletes SQL data, executes seed, or provisions cloud resources.
-The workflow's explicit image restore still smoke-tests the service.
-
-### Separate application restart evidence
-
-Restart, redeployment and image rollback are different events. An A/B workflow run proves
-an image redeployment; it is not separate evidence that the same app process restarted.
-For an approved isolated local stack, record its own baseline and running server identity,
-then use docker compose restart server (no build, migration or volume deletion) and repeat
-the UI/API checks. This restarts only the API container; do not restart/delete the database.
-Label these screenshots LOCAL with the actual commit and environment; never present a local
-order as a production record or local restart as proof of a cloud-instance restart.
-
-If live cloud restart evidence is required, first agree on a supported app-instance
-replacement/restart method and its observable proof after inspecting the actual environment.
-Keep that operation separately authorized; do not improvise SQL restarts, service deletion,
-volume removal, or claim that the deploy script has a restart-only mode. The final C-05
-index must identify which event and environment each before/after pair actually proves.
-
-### Offline validation and limits
-
-Run shell syntax checks, deploy/release stubs, offline Python tests, backend no-emit
-TypeScript validation, unit tests and git diff --check as listed in Episode 7. The release
-stub uses synthetic A/B tags and distinct digests: it asserts exact image lookup/update,
-update-before-traffic ordering, --to-latest selection and no migration/build/seed/provisioning
-for either image restore. It fails closed on unknown cloud operations and blocks direct
-build/seed tools. Its modeled traffic is not real Cloud Run revision verification.
-Existing seed tests use a persistence double; no stub or green health check proves real
-PostgreSQL data or sessions survived. Database-writing integration checks require a
-separately approved disposable database. Do not use the production DB for test suites.
-
-### Recovery, costs and screenshots
-
-Stop on a missing image, failed smoke or unexpected record difference. Inspect workflow,
-revision and migration logs privately before choosing recovery. The application may already
-be receiving traffic when smoke fails; rollback is not automatic. Do not repair evidence by
-re-seeding/resetting SQL, recreating orders or forcing original stock back into the catalog.
-Choose only an available image compatible with the CURRENT schema. Old images with unsafe
-seed behavior must never be run through the normal migration/seed path. Rotating a session
-secret or logging out invalidates session-continuity evidence; document it honestly.
-
-No additional paid resources are needed for the procedure, but running Cloud SQL, image
-storage, pipeline runners and Cloud Run requests still cost. Local stubs cause no GCP usage
-and do not stop existing cloud billing. Keep the service available during grading; do not
-pause SQL during these checks. Preserve the test order unless later cleanup is separately
-approved through supported application behavior.
-
-Evidence checkpoints: direct links to releases A/B and rollback/forward runs; before/after
-order receipts and catalog stock at the same public URL; session continuity without visible
-cookies; skipped test/build and no new migration execution for image restores; summary SHA
-and digest matched to actual serving revision/100% traffic; B's visible change absent on A
-and restored on B; separately labelled restart evidence. Number each screenshot with its
-check (C-05/R-04), actual commit/run/URL/environment and result. Mask passwords, tokens and
-unneeded customer details. Attachments/checksums in the TokTickIT example do not apply:
-TechTent has no supported customer attachment workflow. Close the Episode 8 Issue with
-sanitized results only after live checks actually pass; never fill the table with assumed results.
-
-## Release identification and later episodes
-
-Record full GitHub main SHA, successful Cloud Build, image digest and Cloud Run revision
-for the manual release. Initial bootstrap uses :latest, so record its digest at deployment
-time; do not use the mutable tag alone as proof. The current commit is not exposed by an API.
-Episode 6 configures WIF, main-only demo environment and an enforced required CI check.
-Episode 7 deliberately restores the workflow push trigger through reviewed PRs. Its images
-use full commit SHA tags; release.sh resolves a digest, waits for migration, updates service
-and traffic, and exports image digest/URL. Match the Actions summary, registry digest,
-migration execution and serving revision. Demonstrate a second visible release.
-Episode 8 checks existing orders, inventory and sessions across redeployment; rollback
-reuses an earlier image without migration/seed. Database migrations must remain compatible.
-Manual authentication smoke is optional; do not add user registration or upload features for this lab.
-
-## Evidence checklist
-
-- Record each command/test name, result and tested commit; link CI runs rather than claiming
-  that a local stub proves real cloud connectivity.
-- Episode 5: public URL and browser login, health/readiness/smoke results; Console evidence
-  of PostgreSQL 16/database, storage auto-increase OFF, registry image, runtime Cloud SQL
-  Client role and per-secret accessor permissions, secret names only, service env sources,
-  minimum 0 / maximum 3 instances. Close the setup Issue with sanitized evidence.
-- C-01: passing PR builds/tests into staging and main. C-02 (Episode 6): temporary failing
-  test PR with required check failure and blocked merge; never merge the broken test.
-- C-03: clean-clone build/run and environment table. C-04: customer sign-in, order placement,
-  and a stock-rule rejection or access restriction at the public URL (not just health).
-- C-05 (Episode 8): same order and relevant inventory before/after BOTH restart and redeploy.
-  C-06: Issue -> reviewed staging PR -> release PR -> CI -> deployment, matching serving commit.
-- Final PDF: Answer Parts 0-4; evidence index with direct links, result and commit/version.
-  Number screenshots and state their check, commit/run/URL. Keep text readable; hide secrets.
-  Submit one team PDF named lab5_sec<section>_<group name>.pdf; keep repo public and service
-  available until grading ends. Include both members' contributions and specific reviews.
-
-Cloud SQL incurs charges while running; budget alerts do not cap spending. Do not pause
-while grading or deployment is in progress. Teardown is end-of-term only with explicit
-approval: it deletes data and now includes the session secret. Verify leftovers and billing;
-the script does not remove Cloud Build buckets or Episode 6 deployer/WIF resources.
+Use the handout's **Answer Part 0** through **Answer Part 4** headings in the PDF.
+Give direct links and caption screenshots with the check and tested version.
+Keep the service available through grading. Cloud SQL continues to incur charges
+while running. Review end-of-course teardown separately because it deletes data.
