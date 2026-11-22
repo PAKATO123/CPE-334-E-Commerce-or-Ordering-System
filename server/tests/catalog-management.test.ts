@@ -12,26 +12,37 @@ describe("Feature 6: Catalog Curation & Inventory Restocking (F-06)", () => {
   const TEST_SKU_PREFIX = "TEST-MGMT-";
 
   beforeAll(async () => {
+    // Ensure test users have mustChangePassword = false
+    try {
+      await prisma.user.updateMany({
+        where: { email: { in: ["admin@example.com", "operator1@example.com", "customer1@example.com"] } },
+        data: { mustChangePassword: false, isActive: true },
+      });
+    } catch {}
+
     // Log in as Admin
     adminAgent = request.agent(app);
-    await adminAgent.post("/api/auth/login").send({
+    const adminLogin = await adminAgent.post("/api/auth/login").send({
       email: "admin@example.com",
       password: "Password123!",
     });
+    expect(adminLogin.status).toBe(200);
 
     // Log in as Operator
     operatorAgent = request.agent(app);
-    await operatorAgent.post("/api/auth/login").send({
+    const opLogin = await operatorAgent.post("/api/auth/login").send({
       email: "operator1@example.com",
       password: "Password123!",
     });
+    expect(opLogin.status).toBe(200);
 
     // Log in as Customer
     customerAgent = request.agent(app);
-    await customerAgent.post("/api/auth/login").send({
+    const custLogin = await customerAgent.post("/api/auth/login").send({
       email: "customer1@example.com",
       password: "Password123!",
     });
+    expect(custLogin.status).toBe(200);
 
     // Clean up any test products
     try {

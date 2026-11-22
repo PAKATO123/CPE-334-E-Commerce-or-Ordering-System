@@ -23,8 +23,8 @@
 | Branch Identifier | Base Branch | Target Branch | Feature / Scope | Owner | Reviewer | Status |
 |---|---|---|---|---|---|:---:|
 | **`S2-00/Docs`** | `sprint-2-staging` | `sprint-2-staging` | Sprint 2 baseline contracts, AC, STS, DoD, decisions, and traceability | PAKATO | Joey-pku | **READY FOR PR** |
-| **`F-06/CatalogManagement`** | `sprint-2-staging` | `sprint-2-staging` | Product CRUD, soft-deletion toggle (`isActive`), and atomic restocking endpoint + UI | PAKATO | Joey-pku | **IMPLEMENTED & VERIFIED** |
-| **`F-07/CustomerCancellation`**| `sprint-2-staging` | `sprint-2-staging` | Customer cancellation for `PENDING` orders with atomic stock restoral + UI modal | Joey-pku | PAKATO | **PLANNED** |
+| **`F-06/CatalogManagement`** | `sprint-2-staging` | `sprint-2-staging` | Product CRUD, soft-deletion toggle (`isActive`), sorting (price, stock, status), Zen Green theme, and atomic restocking endpoint + UI | PAKATO | Joey-pku | **IMPLEMENTED & VERIFIED** |
+| **`F-07/CustomerCancellation`**| `sprint-2-staging` | `sprint-2-staging` | Customer cancellation for `PENDING` orders with atomic stock restoral + UI modal | Joey-pku | PAKATO | **IMPLEMENTED & VERIFIED** |
 | **`F-08/PaymentStateMachine`** | `sprint-2-staging` | `sprint-2-staging` | Simulated payment (`UNPAID` ➔ `PAID` ➔ `REFUNDED`) and fulfillment progression (`PACKED`, `SHIPPED`) | PAKATO | Joey-pku | **PLANNED** |
 | **`sprint-2-staging` (Integration)**| `main` | `main` | Sprint 2 release candidate integration, full regression suite execution, and GCP deployment | Both | Both | **PLANNED** |
 
@@ -121,12 +121,12 @@
     npm.cmd --prefix client test -- order-cancellation.test.tsx
     ```
 - **Acceptance Criteria Verification**:
-  - [ ] AC-ORD-CAN-01: Customer can cancel their own `PENDING` order.
-  - [ ] AC-ORD-CAN-02: Reserved quantities atomically restored to products in PostgreSQL.
-  - [ ] AC-ORD-CAN-03: Cancelling `ACCEPTED` or terminal order returns 409 Conflict.
-  - [ ] AC-ORD-CAN-04: Cross-customer cancellation attempts return 403 Forbidden.
-  - [ ] AC-ORD-CAN-05: Cancelling a paid order transitions `paymentStatus` to `REFUNDED`.
-  - [ ] AC-ORD-CAN-06: Concurrent cancellation calls execute atomically without double-restoring stock.
+  - [x] AC-ORD-CAN-01: Customer can cancel their own `PENDING` order.
+  - [x] AC-ORD-CAN-02: Reserved quantities atomically restored to products in PostgreSQL.
+  - [x] AC-ORD-CAN-03: Cancelling `ACCEPTED` or terminal order returns 409 Conflict.
+  - [x] AC-ORD-CAN-04: Cross-customer cancellation attempts return 403 Forbidden.
+  - [x] AC-ORD-CAN-05: Cancelling a paid order transitions `paymentStatus` to `REFUNDED`.
+  - [x] AC-ORD-CAN-06: Concurrent cancellation calls execute atomically without double-restoring stock.
 
 ---
 

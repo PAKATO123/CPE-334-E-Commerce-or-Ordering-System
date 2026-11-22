@@ -14,7 +14,11 @@ export interface OrderData {
   customerId: number;
   customerName?: string;
   customerEmail?: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED";
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+  paymentStatus?: string;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
+  refundedAt?: string | null;
   totalAmount: string;
   itemCount?: number;
   lineItemCount?: number;
