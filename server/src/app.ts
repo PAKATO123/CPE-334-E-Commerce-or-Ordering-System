@@ -19,6 +19,12 @@ import {
   OperatorOrderError,
 } from "./services/operatorOrders.js";
 import {
+  createProduct,
+  updateProduct,
+  restockProduct,
+  ProductError,
+} from "./services/products.js";
+import {
   requireAuth,
   requireRole,
   enforcePasswordChangeCheck,
@@ -252,9 +258,16 @@ app.post("/api/auth/change-password", requireAuth, async (req: Request, res: Res
 app.get("/api/products", async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const { category, search } = req.query;
+    const { category, search, includeInactive } = req.query;
 
-    const where: any = { isActive: true };
+    const isOperatorUser =
+      req.session?.user?.role === "OPERATOR" || req.session?.user?.role === "ADMIN";
+
+    const where: any = {};
+
+    if (!isOperatorUser || includeInactive !== "true") {
+      where.isActive = true;
+    }
 
     if (category && typeof category === "string" && category !== "All") {
       where.category = category;
@@ -340,6 +353,82 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Product Catalog Management & Restocking Endpoints (F-06)
+// ---------------------------------------------------------------------------
+
+// POST /api/products
+app.post(
+  "/api/products",
+  requireAuth,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    try {
+      const product = await createProduct(req.body);
+      return res.status(201).json({ data: product });
+    } catch (error: any) {
+      if (error instanceof ProductError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Create product error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to create product." },
+      });
+    }
+  }
+);
+
+// PATCH /api/products/:id
+app.patch(
+  "/api/products/:id",
+  requireAuth,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const product = await updateProduct(id, req.body);
+      return res.status(200).json({ data: product });
+    } catch (error: any) {
+      if (error instanceof ProductError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Update product error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to update product." },
+      });
+    }
+  }
+);
+
+// POST /api/products/:id/restock
+app.post(
+  "/api/products/:id/restock",
+  requireAuth,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { quantity } = req.body;
+      const result = await restockProduct(id, quantity);
+      return res.status(200).json({ data: result });
+    } catch (error: any) {
+      if (error instanceof ProductError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Restock product error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to restock product." },
+      });
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Order Assembly & Atomic Persistence Endpoints (F-03)

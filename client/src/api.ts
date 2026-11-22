@@ -74,15 +74,22 @@ export async function changePasswordApi(payload: ChangePasswordPayload): Promise
 // Product Catalog & Inventory API Calls (F-02)
 // ---------------------------------------------------------------------------
 
-import { Product } from "./types/product";
+import { Product, CreateProductPayload, UpdateProductPayload, RestockResult } from "./types/product";
 
-export async function getProductsApi(params?: { category?: string; search?: string }): Promise<{ data: Product[] }> {
+export async function getProductsApi(params?: {
+  category?: string;
+  search?: string;
+  includeInactive?: boolean;
+}): Promise<{ data: Product[] }> {
   const query = new URLSearchParams();
   if (params?.category && params.category !== "All") {
     query.set("category", params.category);
   }
   if (params?.search && params.search.trim()) {
     query.set("search", params.search.trim());
+  }
+  if (params?.includeInactive) {
+    query.set("includeInactive", "true");
   }
 
   const qs = query.toString() ? `?${query.toString()}` : "";
@@ -94,6 +101,60 @@ export async function getProductsApi(params?: { category?: string; search?: stri
   const json = await res.json();
   if (!res.ok) {
     const error: any = new Error(json.error?.message || "Failed to fetch products.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+export async function createProductApi(payload: CreateProductPayload): Promise<{ data: Product }> {
+  const res = await fetch(`${API_BASE_URL}/api/products`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to create product.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+export async function updateProductApi(id: number, payload: UpdateProductPayload): Promise<{ data: Product }> {
+  const res = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to update product.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
+export async function restockProductApi(id: number, quantity: number): Promise<{ data: RestockResult }> {
+  const res = await fetch(`${API_BASE_URL}/api/products/${id}/restock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ quantity }),
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to restock product.");
     error.status = res.status;
     error.code = json.error?.code;
     throw error;

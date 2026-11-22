@@ -79,21 +79,38 @@ export const AppShell: React.FC = () => {
               )}
 
               {isOperator && (
-                <NavLink
-                  to="/operator/orders"
-                  className={({ isActive }) => `tt-nav-link ${isActive ? "active" : ""}`}
-                  style={({ isActive }) => ({
-                    textDecoration: "none",
-                    color: "#FFFFFF",
-                    padding: "6px 12px",
-                    borderRadius: "4px",
-                    backgroundColor: isActive ? "rgba(255, 255, 255, 0.25)" : "transparent",
-                    fontWeight: isActive ? 600 : 400,
-                    fontSize: "14px",
-                  })}
-                >
-                  Operator Queue
-                </NavLink>
+                <>
+                  <NavLink
+                    to="/operator/orders"
+                    className={({ isActive }) => `tt-nav-link ${isActive ? "active" : ""}`}
+                    style={({ isActive }) => ({
+                      textDecoration: "none",
+                      color: "#FFFFFF",
+                      padding: "6px 12px",
+                      borderRadius: "4px",
+                      backgroundColor: isActive ? "rgba(255, 255, 255, 0.25)" : "transparent",
+                      fontWeight: isActive ? 600 : 400,
+                      fontSize: "14px",
+                    })}
+                  >
+                    Operator Queue
+                  </NavLink>
+                  <NavLink
+                    to="/operator/products"
+                    className={({ isActive }) => `tt-nav-link ${isActive ? "active" : ""}`}
+                    style={({ isActive }) => ({
+                      textDecoration: "none",
+                      color: "#FFFFFF",
+                      padding: "6px 12px",
+                      borderRadius: "4px",
+                      backgroundColor: isActive ? "rgba(255, 255, 255, 0.25)" : "transparent",
+                      fontWeight: isActive ? 600 : 400,
+                      fontSize: "14px",
+                    })}
+                  >
+                    Manage Products
+                  </NavLink>
+                </>
               )}
             </nav>
           </div>

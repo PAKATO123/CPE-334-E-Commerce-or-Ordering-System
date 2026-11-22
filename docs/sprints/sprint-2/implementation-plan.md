@@ -23,7 +23,7 @@
 | Branch Identifier | Base Branch | Target Branch | Feature / Scope | Owner | Reviewer | Status |
 |---|---|---|---|---|---|:---:|
 | **`S2-00/Docs`** | `sprint-2-staging` | `sprint-2-staging` | Sprint 2 baseline contracts, AC, STS, DoD, decisions, and traceability | PAKATO | Joey-pku | **READY FOR PR** |
-| **`F-06/CatalogManagement`** | `sprint-2-staging` | `sprint-2-staging` | Product CRUD, soft-deletion toggle (`isActive`), and atomic restocking endpoint + UI | PAKATO | Joey-pku | **PLANNED** |
+| **`F-06/CatalogManagement`** | `sprint-2-staging` | `sprint-2-staging` | Product CRUD, soft-deletion toggle (`isActive`), and atomic restocking endpoint + UI | PAKATO | Joey-pku | **IMPLEMENTED & VERIFIED** |
 | **`F-07/CustomerCancellation`**| `sprint-2-staging` | `sprint-2-staging` | Customer cancellation for `PENDING` orders with atomic stock restoral + UI modal | Joey-pku | PAKATO | **PLANNED** |
 | **`F-08/PaymentStateMachine`** | `sprint-2-staging` | `sprint-2-staging` | Simulated payment (`UNPAID` ➔ `PAID` ➔ `REFUNDED`) and fulfillment progression (`PACKED`, `SHIPPED`) | PAKATO | Joey-pku | **PLANNED** |
 | **`sprint-2-staging` (Integration)**| `main` | `main` | Sprint 2 release candidate integration, full regression suite execution, and GCP deployment | Both | Both | **PLANNED** |
@@ -81,12 +81,12 @@
     npm.cmd --prefix client test -- catalog-management.test.tsx
     ```
 - **Acceptance Criteria Verification**:
-  - [ ] AC-CAT-MGMT-01: Create valid product.
-  - [ ] AC-CAT-MGMT-02: Reject duplicate SKU with 409 Conflict.
-  - [ ] AC-CAT-MGMT-03: Reject negative price or stock with 400 Bad Request.
-  - [ ] AC-CAT-MGMT-04: Edit product metadata and toggle `isActive`.
-  - [ ] AC-CAT-MGMT-05: Atomic inventory restock increments quantity accurately.
-  - [ ] AC-CAT-MGMT-06: Customer role access rejected with 403 Forbidden.
+  - [x] AC-CAT-MGMT-01: Create valid product.
+  - [x] AC-CAT-MGMT-02: Reject duplicate SKU with 409 Conflict.
+  - [x] AC-CAT-MGMT-03: Reject negative price or stock with 400 Bad Request.
+  - [x] AC-CAT-MGMT-04: Edit product metadata and toggle `isActive`.
+  - [x] AC-CAT-MGMT-05: Atomic inventory restock increments quantity accurately.
+  - [x] AC-CAT-MGMT-06: Customer role access rejected with 403 Forbidden.
 
 ---
 
