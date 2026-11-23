@@ -33,6 +33,11 @@ import {
   PaymentError,
 } from "./services/payment.js";
 import {
+  getSalesSummary,
+  getTurnaroundMetrics,
+  ReportsError,
+} from "./services/reports.js";
+import {
   requireAuth,
   requireRole,
   enforcePasswordChangeCheck,
@@ -899,6 +904,59 @@ app.patch(
       console.error("Process operator order error:", error);
       return res.status(500).json({
         error: { code: "INTERNAL_ERROR", message: "Failed to process order." },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Operational Reports & Sales Summaries (F-09)
+// ---------------------------------------------------------------------------
+app.get(
+  "/api/reports/sales-summary",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const data = await getSalesSummary(getPrisma(), {
+        startDate: typeof startDate === "string" ? startDate : undefined,
+        endDate: typeof endDate === "string" ? endDate : undefined,
+      });
+      return res.status(200).json({ data });
+    } catch (error) {
+      if (error instanceof ReportsError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Sales summary report error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to generate sales summary report." },
+      });
+    }
+  }
+);
+
+app.get(
+  "/api/reports/turnaround",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    try {
+      const data = await getTurnaroundMetrics(getPrisma());
+      return res.status(200).json({ data });
+    } catch (error) {
+      if (error instanceof ReportsError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Turnaround report error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to generate turnaround metrics." },
       });
     }
   }
