@@ -9,7 +9,10 @@ const FILTERS: { value: OperatorQueueFilter; label: string }[] = [
   { value: "ALL", label: "All" },
   { value: "PENDING", label: "Pending" },
   { value: "ACCEPTED", label: "Accepted" },
+  { value: "PACKED", label: "Packed" },
+  { value: "SHIPPED", label: "Shipped" },
   { value: "REJECTED", label: "Rejected" },
+  { value: "CANCELLED", label: "Cancelled" },
 ];
 
 export const OperatorOrdersPage: React.FC = () => {
@@ -79,9 +82,15 @@ export const OperatorOrdersPage: React.FC = () => {
       await processOperatorOrderApi(order.id, status);
       if (!mountedRef.current) return;
       setRejectOrder(null);
-      setNotice(status === "ACCEPTED"
-        ? `Order ${order.orderNumber} accepted.`
-        : `Order ${order.orderNumber} rejected. Reserved inventory has been restored.`);
+      setNotice(
+        status === "ACCEPTED"
+          ? `Order ${order.orderNumber} accepted.`
+          : status === "PACKED"
+          ? `Order ${order.orderNumber} marked as packed.`
+          : status === "SHIPPED"
+          ? `Order ${order.orderNumber} marked as shipped.`
+          : `Order ${order.orderNumber} rejected. Reserved inventory has been restored.`
+      );
       headingRef.current?.focus();
       await fetchQueueRef.current();
     } catch (err: unknown) {
@@ -163,6 +172,7 @@ export const OperatorOrdersPage: React.FC = () => {
             <dl className="tt-operator-meta">
               <div><dt>Customer</dt><dd><span>{order.customerName || `Customer ${order.customerId}`}</span><br /><span>{order.customerEmail}</span></dd></div>
               <div><dt>Placed</dt><dd><time dateTime={order.createdAt}>{new Date(order.createdAt).toLocaleString()}</time></dd></div>
+              <div><dt>Payment</dt><dd><span>{order.paymentStatus || "UNPAID"}</span>{order.paymentMethod && <span style={{ fontSize: "11px", color: "var(--color-text-muted)" }}> ({order.paymentMethod === "SIMULATED_CARD" ? "Card" : order.paymentMethod === "SIMULATED_PROMPTPAY" ? "PromptPay" : order.paymentMethod})</span>}</dd></div>
               <div><dt>Total quantity</dt><dd>{order.itemCount ?? order.items.reduce((sum, item) => sum + item.quantity, 0)}</dd></div>
             </dl>
             <ul className="tt-operator-items">
@@ -176,6 +186,30 @@ export const OperatorOrdersPage: React.FC = () => {
                 </button>
                 <button type="button" className="tt-btn tt-btn-danger" disabled={processingId !== null} onClick={() => { setDialogError(null); setRejectOrder(order); }} aria-label={`Reject order ${order.orderNumber}`}>Reject</button>
               </>}
+              {order.status === "ACCEPTED" && (
+                <button
+                  type="button"
+                  data-testid={`mark-packed-btn-${order.id}`}
+                  className="tt-btn tt-btn-primary"
+                  disabled={processingId !== null}
+                  onClick={() => void processOrder(order, "PACKED")}
+                  aria-label={`Mark packed ${order.orderNumber}`}
+                >
+                  {processingId === order.id ? "Processing..." : "Mark Packed"}
+                </button>
+              )}
+              {order.status === "PACKED" && (
+                <button
+                  type="button"
+                  data-testid={`mark-shipped-btn-${order.id}`}
+                  className="tt-btn tt-btn-primary"
+                  disabled={processingId !== null}
+                  onClick={() => void processOrder(order, "SHIPPED")}
+                  aria-label={`Mark shipped ${order.orderNumber}`}
+                >
+                  {processingId === order.id ? "Processing..." : "Mark Shipped"}
+                </button>
+              )}
             </div>
           </article>
         ))}

@@ -273,6 +273,27 @@ export async function cancelOrderApi(
   return json;
 }
 
+export async function payOrderApi(
+  id: number | string,
+  paymentMethod: string
+): Promise<{ data: OrderData }> {
+  const res = await fetch(`${API_BASE_URL}/api/orders/${id}/pay`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paymentMethod }),
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to process payment.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
 // Operator queue and fulfillment (F-05).
 export async function getOperatorOrdersApi(
   status?: OrderStatus,

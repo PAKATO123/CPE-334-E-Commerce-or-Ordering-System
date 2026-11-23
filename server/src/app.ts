@@ -29,6 +29,10 @@ import {
   CancellationError,
 } from "./services/cancellation.js";
 import {
+  simulateOrderPayment,
+  PaymentError,
+} from "./services/payment.js";
+import {
   requireAuth,
   requireRole,
   enforcePasswordChangeCheck,
@@ -580,6 +584,7 @@ app.post(
           orderNumber: result.orderNumber,
           customerId: result.customerId,
           status: result.status,
+          paymentStatus: result.paymentStatus || "UNPAID",
           totalAmount: Number(result.totalAmount).toFixed(2),
           createdAt: result.createdAt.toISOString(),
           items: result.items.map((item) => ({
@@ -646,6 +651,8 @@ app.get(
           customerId: order.customerId,
           status: order.status,
           paymentStatus: order.paymentStatus || "UNPAID",
+          paymentMethod: order.paymentMethod || null,
+          paidAt: order.paidAt ? order.paidAt.toISOString() : null,
           cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
           cancellationReason: order.cancellationReason || null,
           refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
@@ -731,6 +738,8 @@ app.get(
           customerEmail: order.customer.email,
           status: order.status,
           paymentStatus: order.paymentStatus || "UNPAID",
+          paymentMethod: order.paymentMethod || null,
+          paidAt: order.paidAt ? order.paidAt.toISOString() : null,
           cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
           cancellationReason: order.cancellationReason || null,
           refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
@@ -793,6 +802,40 @@ app.post(
   }
 );
 
+// POST /api/orders/:id/pay - Simulated Payment Processing (F-08)
+app.post(
+  "/api/orders/:id/pay",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id) || id <= 0) {
+        return res.status(400).json({
+          error: { code: "INVALID_ID", message: "Order ID must be a positive integer." },
+        });
+      }
+
+      const { paymentMethod } = req.body || {};
+      const user = req.session.user!;
+      const prisma = getPrisma();
+
+      const data = await simulateOrderPayment(prisma, id, user.id, user.role, paymentMethod);
+      return res.status(200).json({ data });
+    } catch (error: any) {
+      if (error instanceof PaymentError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Payment processing error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to process payment." },
+      });
+    }
+  }
+);
+
 // ---------------------------------------------------------------------------
 // Operator Orders Queue (F-05)
 // ---------------------------------------------------------------------------
@@ -807,7 +850,7 @@ app.get(
       return res.status(400).json({
         error: {
           code: "INVALID_STATUS",
-          message: "Status must be PENDING, ACCEPTED, or REJECTED. Omit status to list all orders.",
+          message: "Status must be PENDING, ACCEPTED, PACKED, SHIPPED, REJECTED, or CANCELLED. Omit status to list all orders.",
         },
       });
     }
@@ -840,7 +883,7 @@ app.patch(
     const status = req.body?.status;
     if (!isFulfillmentStatus(status)) {
       return res.status(400).json({
-        error: { code: "INVALID_STATUS", message: "Status must be ACCEPTED or REJECTED." },
+        error: { code: "INVALID_STATUS", message: "Status must be ACCEPTED, PACKED, SHIPPED, or REJECTED." },
       });
     }
 

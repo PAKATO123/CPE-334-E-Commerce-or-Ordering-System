@@ -167,13 +167,13 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
             type="button"
             onClick={() => {
               onClose();
-              navigate("/orders");
+              navigate(`/orders/${order.id}`);
             }}
             className="tt-btn tt-btn-primary"
             data-testid="view-orders-btn"
             style={{ flex: 1, padding: "10px", fontSize: "14px", fontWeight: 600 }}
           >
-            View My Orders
+            View Order Details
           </button>
           <button
             type="button"

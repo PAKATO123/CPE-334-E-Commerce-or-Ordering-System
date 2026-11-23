@@ -50,6 +50,46 @@ export const OrderHistoryPage: React.FC = () => {
             ✓ Accepted
           </span>
         );
+      case "PACKED":
+        return (
+          <span
+            data-testid="order-status-badge"
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              padding: "4px 10px",
+              borderRadius: "12px",
+              backgroundColor: "#EBF8FF",
+              color: "#2B6CB0",
+              border: "1px solid #BEE3F8",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            📦 Packed
+          </span>
+        );
+      case "SHIPPED":
+        return (
+          <span
+            data-testid="order-status-badge"
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              padding: "4px 10px",
+              borderRadius: "12px",
+              backgroundColor: "#FAF5FF",
+              color: "#6B46C1",
+              border: "1px solid #E9D8FD",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            🚚 Shipped
+          </span>
+        );
       case "REJECTED":
         return (
           <span

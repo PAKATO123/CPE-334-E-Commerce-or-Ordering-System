@@ -25,7 +25,7 @@
 | **`S2-00/Docs`** | `sprint-2-staging` | `sprint-2-staging` | Sprint 2 baseline contracts, AC, STS, DoD, decisions, and traceability | PAKATO | Joey-pku | **READY FOR PR** |
 | **`F-06/CatalogManagement`** | `sprint-2-staging` | `sprint-2-staging` | Product CRUD, soft-deletion toggle (`isActive`), sorting (price, stock, status), Zen Green theme, and atomic restocking endpoint + UI | PAKATO | Joey-pku | **IMPLEMENTED & VERIFIED** |
 | **`F-07/CustomerCancellation`**| `sprint-2-staging` | `sprint-2-staging` | Customer cancellation for `PENDING` orders with atomic stock restoral + UI modal | Joey-pku | PAKATO | **IMPLEMENTED & VERIFIED** |
-| **`F-08/PaymentStateMachine`** | `sprint-2-staging` | `sprint-2-staging` | Simulated payment (`UNPAID` ➔ `PAID` ➔ `REFUNDED`) and fulfillment progression (`PACKED`, `SHIPPED`) | PAKATO | Joey-pku | **PLANNED** |
+| **`F-08/PaymentStateMachine`** | `sprint-2-staging` | `sprint-2-staging` | Simulated payment (`UNPAID` ➔ `PAID` ➔ `REFUNDED`) and fulfillment progression (`PACKED`, `SHIPPED`) | PAKATO | Joey-pku | **IMPLEMENTED & VERIFIED** |
 | **`sprint-2-staging` (Integration)**| `main` | `main` | Sprint 2 release candidate integration, full regression suite execution, and GCP deployment | Both | Both | **PLANNED** |
 
 ---
@@ -167,13 +167,13 @@
     npm.cmd --prefix client test -- payment-lifecycle.test.tsx
     ```
 - **Acceptance Criteria Verification**:
-  - [ ] AC-PAY-01: New orders initialize with `paymentStatus = 'UNPAID'`.
-  - [ ] AC-PAY-02: Customer can simulate payment, setting `PAID` and `paidAt`.
-  - [ ] AC-PAY-03: Duplicate payment calls rejected with 409 Conflict (`ORDER_ALREADY_PAID`).
-  - [ ] AC-PAY-04: Cannot pay a cancelled or rejected order (422 Unprocessable).
-  - [ ] AC-PAY-05: Operator progresses fulfillment through `ACCEPTED` ➔ `PACKED` ➔ `SHIPPED`.
-  - [ ] AC-PAY-06: Disallowed transition skips rejected with 400 Bad Request.
-  - [ ] AC-PAY-07: Operator rejection of a paid order automatically sets `paymentStatus = 'REFUNDED'`.
+  - [x] AC-PAY-01: New orders initialize with `paymentStatus = 'UNPAID'`.
+  - [x] AC-PAY-02: Customer can simulate payment, setting `PAID` and `paidAt`.
+  - [x] AC-PAY-03: Duplicate payment calls rejected with 409 Conflict (`ORDER_ALREADY_PAID`).
+  - [x] AC-PAY-04: Cannot pay a cancelled or rejected order (422 Unprocessable).
+  - [x] AC-PAY-05: Operator progresses fulfillment through `ACCEPTED` ➔ `PACKED` ➔ `SHIPPED`.
+  - [x] AC-PAY-06: Disallowed transition skips rejected with 400 Bad Request.
+  - [x] AC-PAY-07: Operator rejection of a paid order automatically sets `paymentStatus = 'REFUNDED'`.
 
 ---
 

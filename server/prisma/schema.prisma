@@ -63,9 +63,11 @@ model Order {
   orderNumber        String      @unique
   customerId         Int
   customer           User        @relation(fields: [customerId], references: [id])
-  status             String      @default("PENDING") // PENDING, ACCEPTED, REJECTED, CANCELLED
+  status             String      @default("PENDING") // PENDING, ACCEPTED, PACKED, SHIPPED, REJECTED, CANCELLED
   totalAmount        Decimal     @db.Decimal(10, 2)
   paymentStatus      String      @default("UNPAID") // UNPAID, PAID, REFUNDED, VOID
+  paymentMethod      String?
+  paidAt             DateTime?
   cancelledAt        DateTime?
   cancellationReason String?
   refundedAt         DateTime?

@@ -232,7 +232,9 @@ describe("Feature 4: Customer Order History & Receipt Details (F-04)", () => {
     });
 
     expect(screen.queryByTestId("continue-shopping-link")).not.toBeInTheDocument();
-    expect(screen.getByTestId("return-orders-btn")).toHaveTextContent("← Return to Operator Queue");
+    expect(screen.getByTestId("back-to-orders-link")).toHaveTextContent("← Back to Operator Queue");
+    expect(screen.getByTestId("operator-accept-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("operator-reject-btn")).toBeInTheDocument();
     expect(screen.getByText("Customer Order Details & Fulfillment Status")).toBeInTheDocument();
   });
 });
