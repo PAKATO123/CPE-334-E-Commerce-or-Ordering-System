@@ -70,6 +70,26 @@ export const OrderHistoryPage: React.FC = () => {
             ✕ Rejected
           </span>
         );
+      case "CANCELLED":
+        return (
+          <span
+            data-testid="order-status-badge"
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              padding: "4px 10px",
+              borderRadius: "12px",
+              backgroundColor: "#FFF5F5",
+              color: "#C53030",
+              border: "1px solid #FEB2B2",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            ✕ Cancelled
+          </span>
+        );
       case "PENDING":
       default:
         return (

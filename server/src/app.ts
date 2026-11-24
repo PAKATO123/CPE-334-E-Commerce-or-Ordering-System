@@ -25,6 +25,10 @@ import {
   ProductError,
 } from "./services/products.js";
 import {
+  cancelCustomerOrder,
+  CancellationError,
+} from "./services/cancellation.js";
+import {
   requireAuth,
   requireRole,
   enforcePasswordChangeCheck,
@@ -641,6 +645,10 @@ app.get(
           orderNumber: order.orderNumber,
           customerId: order.customerId,
           status: order.status,
+          paymentStatus: order.paymentStatus || "UNPAID",
+          cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
+          cancellationReason: order.cancellationReason || null,
+          refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
           totalAmount: Number(order.totalAmount).toFixed(2),
           itemCount: totalItemsCount,
           lineItemCount: order.items.length,
@@ -722,6 +730,10 @@ app.get(
           customerName: order.customer.name,
           customerEmail: order.customer.email,
           status: order.status,
+          paymentStatus: order.paymentStatus || "UNPAID",
+          cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
+          cancellationReason: order.cancellationReason || null,
+          refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
           totalAmount: Number(order.totalAmount).toFixed(2),
           itemCount: totalItemsCount,
           lineItemCount: order.items.length,
@@ -742,6 +754,40 @@ app.get(
       console.error("Fetch order detail error:", error);
       return res.status(500).json({
         error: { code: "INTERNAL_ERROR", message: "Failed to fetch order detail." },
+      });
+    }
+  }
+);
+
+// POST /api/orders/:id/cancel - Customer Order Cancellation (F-07)
+app.post(
+  "/api/orders/:id/cancel",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id) || id <= 0) {
+        return res.status(400).json({
+          error: { code: "INVALID_ID", message: "Order ID must be a positive integer." },
+        });
+      }
+
+      const { reason } = req.body || {};
+      const user = req.session.user!;
+      const prisma = getPrisma();
+
+      const data = await cancelCustomerOrder(prisma, id, user.id, user.role, reason);
+      return res.status(200).json({ data });
+    } catch (error: any) {
+      if (error instanceof CancellationError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Cancel order error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to cancel order." },
       });
     }
   }

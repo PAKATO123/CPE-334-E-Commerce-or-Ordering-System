@@ -252,6 +252,27 @@ export async function getOrderByIdApi(id: number | string): Promise<{ data: Orde
   return json;
 }
 
+export async function cancelOrderApi(
+  id: number | string,
+  reason?: string
+): Promise<{ data: OrderData }> {
+  const res = await fetch(`${API_BASE_URL}/api/orders/${id}/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+    credentials: "include",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const error: any = new Error(json.error?.message || "Failed to cancel order.");
+    error.status = res.status;
+    error.code = json.error?.code;
+    throw error;
+  }
+  return json;
+}
+
 // Operator queue and fulfillment (F-05).
 export async function getOperatorOrdersApi(
   status?: OrderStatus,

@@ -236,4 +236,37 @@ describe("Feature 6: Product Catalog Management Component (F-06)", () => {
     await screen.findByTestId("mgmt-error-banner");
     expect(screen.getByTestId("mgmt-error-banner")).toHaveTextContent("A product with this SKU already exists.");
   });
+
+  it("sorts products by unit price, stock, and status", async () => {
+    renderManagementPage();
+    await screen.findByText("Flagship Pro Smartphone 256GB");
+
+    // Click sort by price
+    const sortPriceHeader = screen.getByTestId("sort-header-price");
+    fireEvent.click(sortPriceHeader);
+
+    const rowsAfterPriceAsc = screen.getAllByTestId(/^product-row-/);
+    // Discontinued Cable ($9.99) should be first
+    expect(rowsAfterPriceAsc[0]).toHaveTextContent("Discontinued Cable");
+
+    // Click price sort again for desc
+    fireEvent.click(sortPriceHeader);
+    const rowsAfterPriceDesc = screen.getAllByTestId(/^product-row-/);
+    // Flagship Pro Smartphone ($899.00) should be first
+    expect(rowsAfterPriceDesc[0]).toHaveTextContent("Flagship Pro Smartphone 256GB");
+
+    // Sort by stock
+    const sortStockHeader = screen.getByTestId("sort-header-stock");
+    fireEvent.click(sortStockHeader);
+    const rowsAfterStockAsc = screen.getAllByTestId(/^product-row-/);
+    // Stock 0 (Discontinued Cable) should be first
+    expect(rowsAfterStockAsc[0]).toHaveTextContent("Discontinued Cable");
+
+    // Sort by status dropdown
+    const sortSelect = screen.getByTestId("mgmt-sort-select");
+    fireEvent.change(sortSelect, { target: { value: "status-asc" } });
+    const rowsAfterStatus = screen.getAllByTestId(/^product-row-/);
+    // Discontinued first
+    expect(rowsAfterStatus[0]).toHaveTextContent("Discontinued Cable");
+  });
 });
