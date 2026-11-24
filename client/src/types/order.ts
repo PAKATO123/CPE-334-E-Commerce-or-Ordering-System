@@ -14,7 +14,13 @@ export interface OrderData {
   customerId: number;
   customerName?: string;
   customerEmail?: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED";
+  status: "PENDING" | "ACCEPTED" | "PACKED" | "SHIPPED" | "REJECTED" | "CANCELLED";
+  paymentStatus?: string;
+  paymentMethod?: string | null;
+  paidAt?: string | null;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
+  refundedAt?: string | null;
   totalAmount: string;
   itemCount?: number;
   lineItemCount?: number;
@@ -33,7 +39,7 @@ export interface CreateOrderPayload {
 }
 
 export type OrderStatus = OrderData["status"];
-export type FulfillmentStatus = Exclude<OrderStatus, "PENDING">;
+export type FulfillmentStatus = "ACCEPTED" | "PACKED" | "SHIPPED" | "REJECTED";
 export type OperatorQueueFilter = "ALL" | OrderStatus;
 
 export interface ProcessedOrderData {

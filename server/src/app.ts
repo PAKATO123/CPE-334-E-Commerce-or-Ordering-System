@@ -19,6 +19,20 @@ import {
   OperatorOrderError,
 } from "./services/operatorOrders.js";
 import {
+  createProduct,
+  updateProduct,
+  restockProduct,
+  ProductError,
+} from "./services/products.js";
+import {
+  cancelCustomerOrder,
+  CancellationError,
+} from "./services/cancellation.js";
+import {
+  simulateOrderPayment,
+  PaymentError,
+} from "./services/payment.js";
+import {
   requireAuth,
   requireRole,
   enforcePasswordChangeCheck,
@@ -252,9 +266,16 @@ app.post("/api/auth/change-password", requireAuth, async (req: Request, res: Res
 app.get("/api/products", async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const { category, search } = req.query;
+    const { category, search, includeInactive } = req.query;
 
-    const where: any = { isActive: true };
+    const isOperatorUser =
+      req.session?.user?.role === "OPERATOR" || req.session?.user?.role === "ADMIN";
+
+    const where: any = {};
+
+    if (!isOperatorUser || includeInactive !== "true") {
+      where.isActive = true;
+    }
 
     if (category && typeof category === "string" && category !== "All") {
       where.category = category;
@@ -340,6 +361,82 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Product Catalog Management & Restocking Endpoints (F-06)
+// ---------------------------------------------------------------------------
+
+// POST /api/products
+app.post(
+  "/api/products",
+  requireAuth,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    try {
+      const product = await createProduct(req.body);
+      return res.status(201).json({ data: product });
+    } catch (error: any) {
+      if (error instanceof ProductError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Create product error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to create product." },
+      });
+    }
+  }
+);
+
+// PATCH /api/products/:id
+app.patch(
+  "/api/products/:id",
+  requireAuth,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const product = await updateProduct(id, req.body);
+      return res.status(200).json({ data: product });
+    } catch (error: any) {
+      if (error instanceof ProductError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Update product error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to update product." },
+      });
+    }
+  }
+);
+
+// POST /api/products/:id/restock
+app.post(
+  "/api/products/:id/restock",
+  requireAuth,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { quantity } = req.body;
+      const result = await restockProduct(id, quantity);
+      return res.status(200).json({ data: result });
+    } catch (error: any) {
+      if (error instanceof ProductError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Restock product error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to restock product." },
+      });
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Order Assembly & Atomic Persistence Endpoints (F-03)
@@ -487,6 +584,7 @@ app.post(
           orderNumber: result.orderNumber,
           customerId: result.customerId,
           status: result.status,
+          paymentStatus: result.paymentStatus || "UNPAID",
           totalAmount: Number(result.totalAmount).toFixed(2),
           createdAt: result.createdAt.toISOString(),
           items: result.items.map((item) => ({
@@ -552,6 +650,12 @@ app.get(
           orderNumber: order.orderNumber,
           customerId: order.customerId,
           status: order.status,
+          paymentStatus: order.paymentStatus || "UNPAID",
+          paymentMethod: order.paymentMethod || null,
+          paidAt: order.paidAt ? order.paidAt.toISOString() : null,
+          cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
+          cancellationReason: order.cancellationReason || null,
+          refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
           totalAmount: Number(order.totalAmount).toFixed(2),
           itemCount: totalItemsCount,
           lineItemCount: order.items.length,
@@ -633,6 +737,12 @@ app.get(
           customerName: order.customer.name,
           customerEmail: order.customer.email,
           status: order.status,
+          paymentStatus: order.paymentStatus || "UNPAID",
+          paymentMethod: order.paymentMethod || null,
+          paidAt: order.paidAt ? order.paidAt.toISOString() : null,
+          cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
+          cancellationReason: order.cancellationReason || null,
+          refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
           totalAmount: Number(order.totalAmount).toFixed(2),
           itemCount: totalItemsCount,
           lineItemCount: order.items.length,
@@ -658,6 +768,74 @@ app.get(
   }
 );
 
+// POST /api/orders/:id/cancel - Customer Order Cancellation (F-07)
+app.post(
+  "/api/orders/:id/cancel",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id) || id <= 0) {
+        return res.status(400).json({
+          error: { code: "INVALID_ID", message: "Order ID must be a positive integer." },
+        });
+      }
+
+      const { reason } = req.body || {};
+      const user = req.session.user!;
+      const prisma = getPrisma();
+
+      const data = await cancelCustomerOrder(prisma, id, user.id, user.role, reason);
+      return res.status(200).json({ data });
+    } catch (error: any) {
+      if (error instanceof CancellationError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Cancel order error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to cancel order." },
+      });
+    }
+  }
+);
+
+// POST /api/orders/:id/pay - Simulated Payment Processing (F-08)
+app.post(
+  "/api/orders/:id/pay",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id) || id <= 0) {
+        return res.status(400).json({
+          error: { code: "INVALID_ID", message: "Order ID must be a positive integer." },
+        });
+      }
+
+      const { paymentMethod } = req.body || {};
+      const user = req.session.user!;
+      const prisma = getPrisma();
+
+      const data = await simulateOrderPayment(prisma, id, user.id, user.role, paymentMethod);
+      return res.status(200).json({ data });
+    } catch (error: any) {
+      if (error instanceof PaymentError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Payment processing error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to process payment." },
+      });
+    }
+  }
+);
+
 // ---------------------------------------------------------------------------
 // Operator Orders Queue (F-05)
 // ---------------------------------------------------------------------------
@@ -672,7 +850,7 @@ app.get(
       return res.status(400).json({
         error: {
           code: "INVALID_STATUS",
-          message: "Status must be PENDING, ACCEPTED, or REJECTED. Omit status to list all orders.",
+          message: "Status must be PENDING, ACCEPTED, PACKED, SHIPPED, REJECTED, or CANCELLED. Omit status to list all orders.",
         },
       });
     }
@@ -705,7 +883,7 @@ app.patch(
     const status = req.body?.status;
     if (!isFulfillmentStatus(status)) {
       return res.status(400).json({
-        error: { code: "INVALID_STATUS", message: "Status must be ACCEPTED or REJECTED." },
+        error: { code: "INVALID_STATUS", message: "Status must be ACCEPTED, PACKED, SHIPPED, or REJECTED." },
       });
     }
 

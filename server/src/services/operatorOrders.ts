@@ -1,16 +1,17 @@
 import type { PrismaClient } from "@prisma/client";
 
-const ORDER_STATUSES = ["PENDING", "ACCEPTED", "REJECTED"] as const;
+const ORDER_STATUSES = ["PENDING", "ACCEPTED", "PACKED", "SHIPPED", "REJECTED", "CANCELLED"] as const;
 export type OperatorOrderStatus = (typeof ORDER_STATUSES)[number];
 
 export function isOperatorOrderStatus(value: unknown): value is OperatorOrderStatus {
   return typeof value === "string" && ORDER_STATUSES.some((status) => status === value);
 }
 
-export type FulfillmentStatus = Exclude<OperatorOrderStatus, "PENDING">;
+const FULFILLMENT_STATUSES = ["ACCEPTED", "PACKED", "SHIPPED", "REJECTED"] as const;
+export type FulfillmentStatus = (typeof FULFILLMENT_STATUSES)[number];
 
 export function isFulfillmentStatus(value: unknown): value is FulfillmentStatus {
-  return value === "ACCEPTED" || value === "REJECTED";
+  return typeof value === "string" && FULFILLMENT_STATUSES.some((status) => status === value);
 }
 
 export function parseOperatorOrderId(value: string): number | undefined {
@@ -32,7 +33,7 @@ export class OperatorOrderError extends Error {
   }
 }
 
-/** Claim a pending order before touching inventory; all writes commit or roll back together. */
+/** Claim an order according to fulfillment state progression; all writes commit or roll back together. */
 export async function processOperatorOrder(
   prisma: Pick<PrismaClient, "$transaction">,
   id: number,
@@ -42,18 +43,89 @@ export async function processOperatorOrder(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       return await prisma.$transaction(async (tx) => {
-        // PostgreSQL locks the matching row and rechecks this predicate after
-        // waiting for another writer. Only the winning request may restore stock.
+        // Inspect current order state
+        const existing = await tx.order.findUnique({
+          where: { id },
+          select: { id: true, orderNumber: true, status: true, paymentStatus: true },
+        });
+
+        if (!existing) {
+          throw new OperatorOrderError(404, "ORDER_NOT_FOUND", "Order not found.");
+        }
+
+        // Terminal states cannot be transitioned further
+        if (existing.status === "SHIPPED" || existing.status === "REJECTED" || existing.status === "CANCELLED") {
+          throw new OperatorOrderError(
+            409,
+            "ORDER_ALREADY_PROCESSED",
+            "This order has already been processed. Refresh the queue to see its current status."
+          );
+        }
+
+        // Enforce valid state machine transitions:
+        // PENDING -> ACCEPTED or REJECTED
+        // ACCEPTED -> PACKED
+        // PACKED -> SHIPPED
+        if (existing.status === "PENDING") {
+          if (status !== "ACCEPTED" && status !== "REJECTED") {
+            throw new OperatorOrderError(
+              400,
+              "INVALID_TRANSITION",
+              `Cannot transition from PENDING to ${status}.`
+            );
+          }
+        } else if (existing.status === "ACCEPTED") {
+          if (status === "ACCEPTED" || status === "REJECTED") {
+            throw new OperatorOrderError(
+              409,
+              "ORDER_ALREADY_PROCESSED",
+              "This order has already been processed. Refresh the queue to see its current status."
+            );
+          }
+          if (status === "SHIPPED") {
+            throw new OperatorOrderError(
+              400,
+              "INVALID_TRANSITION",
+              "Cannot transition from ACCEPTED to SHIPPED. Order must be PACKED first."
+            );
+          }
+        } else if (existing.status === "PACKED") {
+          if (status === "ACCEPTED" || status === "REJECTED" || status === "PACKED") {
+            throw new OperatorOrderError(
+              409,
+              "ORDER_ALREADY_PROCESSED",
+              "This order has already been processed. Refresh the queue to see its current status."
+            );
+          }
+          if (status !== "SHIPPED") {
+            throw new OperatorOrderError(
+              400,
+              "INVALID_TRANSITION",
+              `Cannot transition from PACKED to ${status}.`
+            );
+          }
+        }
+
+        const now = new Date();
+        const updateData: any = { status };
+
+        // AC-PAY-07: If an order with paymentStatus === 'PAID' is rejected by operator,
+        // paymentStatus transitions to 'REFUNDED' and refundedAt is stamped. If UNPAID, it transitions to 'VOID'.
+        if (status === "REJECTED") {
+          if (existing.paymentStatus === "PAID") {
+            updateData.paymentStatus = "REFUNDED";
+            updateData.refundedAt = now;
+          } else if (existing.paymentStatus === "UNPAID") {
+            updateData.paymentStatus = "VOID";
+          }
+        }
+
         const claimed = await tx.order.updateMany({
-          where: { id, status: "PENDING" },
-          data: { status },
+          where: { id, status: existing.status },
+          data: updateData,
         });
 
         if (claimed.count !== 1) {
-          const existing = await tx.order.findUnique({ where: { id }, select: { id: true } });
-          if (!existing) {
-            throw new OperatorOrderError(404, "ORDER_NOT_FOUND", "Order not found.");
-          }
           throw new OperatorOrderError(
             409,
             "ORDER_ALREADY_PROCESSED",
@@ -78,9 +150,20 @@ export async function processOperatorOrder(
 
         const order = await tx.order.findUniqueOrThrow({
           where: { id },
-          select: { id: true, orderNumber: true, status: true, updatedAt: true },
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            paymentStatus: true,
+            refundedAt: true,
+            updatedAt: true,
+          },
         });
-        return { ...order, updatedAt: order.updatedAt.toISOString() };
+        return {
+          ...order,
+          updatedAt: order.updatedAt.toISOString(),
+          refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
+        };
       }, { isolationLevel: "ReadCommitted" });
     } catch (error) {
       // Retry the entire aborted transaction, never individual stock increments.
@@ -113,6 +196,12 @@ export async function listOperatorOrders(
       orderNumber: true,
       customerId: true,
       status: true,
+      paymentStatus: true,
+      paymentMethod: true,
+      paidAt: true,
+      refundedAt: true,
+      cancelledAt: true,
+      cancellationReason: true,
       totalAmount: true,
       createdAt: true,
       updatedAt: true,
@@ -138,6 +227,12 @@ export async function listOperatorOrders(
     customerName: order.customer.name,
     customerEmail: order.customer.email,
     status: order.status,
+    paymentStatus: order.paymentStatus || "UNPAID",
+    paymentMethod: order.paymentMethod || null,
+    paidAt: order.paidAt ? order.paidAt.toISOString() : null,
+    refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
+    cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
+    cancellationReason: order.cancellationReason || null,
     totalAmount: order.totalAmount.toFixed(2),
     itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
     lineItemCount: order.items.length,

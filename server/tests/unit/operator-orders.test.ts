@@ -7,9 +7,22 @@ describe("operator input boundaries (database-free)", () => {
   it.each(["0", "-1", "01", "1.5", "1e2", "12abc", " 1", "+1", "", "2147483648", "9007199254740993"])(
     "rejects malformed or out-of-range ID %s", value => expect(parseOperatorOrderId(value)).toBeUndefined()
   );
-  it.each(["PENDING", "ACCEPTED", "REJECTED"])("permits queue status %s", value => expect(isOperatorOrderStatus(value)).toBe(true));
-  it.each(["", "pending", "ALL", ["PENDING", "ACCEPTED"], {}, null, 1])("rejects queue status %j", value => expect(isOperatorOrderStatus(value)).toBe(false));
-  it.each(["PENDING", "accepted", "", undefined, null, [], {}])("rejects fulfillment target %j", value => expect(isFulfillmentStatus(value)).toBe(false));
+  it.each(["PENDING", "ACCEPTED", "PACKED", "SHIPPED", "REJECTED", "CANCELLED"])(
+    "permits queue status %s",
+    (value) => expect(isOperatorOrderStatus(value)).toBe(true)
+  );
+  it.each(["", "pending", "ALL", ["PENDING", "ACCEPTED"], {}, null, 1])(
+    "rejects queue status %j",
+    (value) => expect(isOperatorOrderStatus(value)).toBe(false)
+  );
+  it.each(["ACCEPTED", "PACKED", "SHIPPED", "REJECTED"])(
+    "permits fulfillment target %s",
+    (value) => expect(isFulfillmentStatus(value)).toBe(true)
+  );
+  it.each(["PENDING", "CANCELLED", "accepted", "", undefined, null, [], {}])(
+    "rejects fulfillment target %j",
+    (value) => expect(isFulfillmentStatus(value)).toBe(false)
+  );
 });
 
 describe("operator transaction retries (mocked, not PostgreSQL verification)", () => {

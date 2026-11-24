@@ -680,7 +680,10 @@ a:hover {
 .tt-operator-status { display: inline-block; border-radius: 12px; padding: 4px 10px; font-size: 12px; font-weight: 700; }
 .tt-operator-status-pending { background: #FEFCBF; color: #975A16; }
 .tt-operator-status-accepted { background: #EAF6EF; color: #0B7A46; }
+.tt-operator-status-packed { background: #EBF8FF; color: #2B6CB0; }
+.tt-operator-status-shipped { background: #FAF5FF; color: #6B46C1; }
 .tt-operator-status-rejected { background: #FFF5F5; color: #C53030; }
+.tt-operator-status-cancelled { background: #FFF5F5; color: #C53030; }
 .tt-operator-error,
 .tt-operator-success { padding: 14px; margin: 16px 0; border: 1px solid; border-radius: 8px; }
 .tt-operator-error { background: #FFF5F5; color: #9B2C2C; border-color: #FEB2B2; }

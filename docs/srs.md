@@ -9,23 +9,31 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
 1. **Overselling High-Demand Inventory**: Accepting orders for popular devices when physical stock is already exhausted.
 2. **Pricing Discrepancies & Stale Cart Totals**: Customers submitting checkout requests with outdated or client-manipulated prices, creating reconciliation overhead.
 3. **Fulfillment Bottlenecks**: Lack of a centralized operator queue where incoming purchase requests can be inspected, stock verified, and orders formally accepted for warehouse packaging.
+4. **Lack of Lifecycle Controls**: Inability for customers to cancel accidental purchases prior to fulfillment, or for operators to curate catalog inventory and observe sales status.
 
 ### 1.2 System Purpose: TechTent
 **TechTent** is an authoritative, full-stack ordering platform engineered to manage the sales and fulfillment pipeline of everyday consumer technology products (Smartphones, Tablets, Smart TVs, Keyboards, and Power/Chargers). The system guarantees that:
 - Customers can only purchase currently stocked devices at authoritative, server-enforced prices.
 - Historic purchase prices are permanently preserved at the moment of order placement.
 - Stock is reserved atomically upon order placement, preventing overselling.
-- Operators maintain dedicated operational visibility to review line items and formally accept incoming orders.
+- Customers can cancel `PENDING` orders, triggering automated atomic stock restoral and payment refund.
+- Operators maintain dedicated operational visibility to review line items, accept/reject incoming orders, advance fulfillment states (`ACCEPTED` ➔ `PACKED` ➔ `SHIPPED`), and curate catalog inventory with atomic restocking.
+- Simulated payment lifecycle (`UNPAID` ➔ `PAID` ➔ `REFUNDED`) operates seamlessly alongside physical fulfillment.
 - Strict data isolation prevents customers from viewing or modifying other customers' orders.
 
 ### 1.3 Scope of the Product
-- **In-Scope (Full Lifecycle)**:
+- **In-Scope (Sprint 1 Baseline + Sprint 2 Core Expansion)**:
   - User identity and role-based authentication (`CUSTOMER`, `OPERATOR`, `ADMIN`).
   - Active product catalog with categorical grouping (Smartphones, Tablets, TVs, Keyboards, Chargers), descriptions, authoritative prices (USD), and real-time inventory levels.
   - Multi-item shopping cart and order placement with atomic transactional stock reservation.
   - Itemized customer order history and receipt retrieval.
-  - Dedicated operator order management queue with one-click status transitions.
-  - Later Sprints: Catalog administration, restocking, customer cancellation workflows, simulated payment state tracking, and aggregate sales analytics.
+  - Operator order queue with status filters and fulfillment progression (`PENDING`, `ACCEPTED`, `PACKED`, `SHIPPED`, `CANCELLED`, `REJECTED`).
+  - Catalog curation and atomic inventory restocking by store operators (`F-06`).
+  - Customer order cancellation with automated atomic stock restoral (`F-07`).
+  - Simulated payment status tracking (`UNPAID`, `PAID`, `REFUNDED`, `VOID`) (`F-08`).
+- **Deferred to Sprint 3**:
+  - Executive sales summaries and fulfillment turnaround metrics (`F-09`).
+  - Comprehensive rate limiting, error envelope sanitation, and production hardening (`F-10`).
 - **Explicit Exclusions**:
   - Real financial gateway integration (Stripe, Omise, PayPal); payment statuses are simulated through internal order state transitions.
   - External courier logistics tracking (FedEx, Kerry Express, Thailand Post APIs).
@@ -37,32 +45,50 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
 
 | Actor | Role Identifier | Responsibilities & Access Scope |
 |---|---|---|
-| **Customer** | `CUSTOMER` | Authenticated consumer. Browses the TechTent tech catalog, reviews real-time device availability, constructs multi-item orders, submits orders, and reviews personal order receipts. Strictly prohibited from modifying prices or inspecting other users' transactions. |
-| **Operator** | `OPERATOR` | Fulfillment and store operations staff. Monitors the incoming order queue, inspects customer order line items, verifies warehouse stock allocation, and transitions order status (e.g., `PENDING` ➔ `ACCEPTED` or `REJECTED`). |
-| **Administrator** | `ADMIN` | Store supervisor. Possesses all Operator permissions, plus user account lifecycle oversight and upcoming catalog curation/price updates. |
+| **Customer** | `CUSTOMER` | Authenticated consumer. Browses TechTent tech catalog, reviews real-time device availability, constructs multi-item orders, submits orders, executes simulated payments, cancels pending orders, and reviews personal order receipts. Strictly prohibited from modifying prices or inspecting other users' transactions. |
+| **Operator** | `OPERATOR` | Fulfillment and store operations staff. Monitors incoming order queue, inspects customer line items, accepts/rejects orders, progresses order fulfillment (`PACKED`, `SHIPPED`), curates product catalog, and restocks warehouse inventory. |
+| **Administrator** | `ADMIN` | Store supervisor. Possesses all Operator permissions, plus user account lifecycle oversight and system configuration. |
 | **Guest / Anonymous** | `ANONYMOUS` | Unauthenticated visitor. May access health check endpoints and login screen. Directed to authenticate before accessing catalog, cart, or order capabilities. |
 
 ---
 
 ## 3. Functional Requirements (FR)
 
-### 3.1 Catalog & Product Browsing
+### 3.1 Catalog & Product Browsing (Sprint 1)
 - **FR-01 (Product Catalog Listing)**: The system shall provide an endpoint and UI view to list all active electronic products, displaying SKU, name, category, description, unit price (USD), and stock quantity.
 - **FR-02 (Catalog Real-time Availability)**: The system shall reflect immediate stock availability, visibly marking items with zero stock as "Out of Stock" and disabling addition to order.
 
-### 3.2 Order Assembly & Submission
+### 3.2 Order Assembly & Submission (Sprint 1)
 - **FR-03 (Multi-Item Order Construction)**: Customers shall be able to select multiple distinct products, specify requested quantities for each item, and view a preview of line item subtotals and estimated total.
 - **FR-04 (Order Submission & Atomic Persistence)**: The customer shall be able to submit an order. The system shall validate item availability, authoritatively compute pricing, create the order record with status `PENDING`, create corresponding line item snapshots, and reserve/decrement available stock within an atomic database transaction.
 - **FR-05 (Unique Order Identification)**: The system shall generate a human-readable, unique order reference identifier for every created order conforming to `ORD-YYYYMMDD-XXXX`.
 
-### 3.3 Customer Order History & Receipt Retrieval
-- **FR-06 (Order History List)**: Authenticated customers shall be able to view a chronological list of their own submitted orders, showing Order Number, Creation Date, Status, Total Amount, and total item count.
-- **FR-07 (Itemized Order Receipt)**: Customers shall be able to retrieve detailed receipts for any of their own orders, displaying the preserved unit prices, line item quantities, calculated line subtotals, grand total, and current status.
+### 3.3 Customer Order History & Receipt Retrieval (Sprint 1)
+- **FR-06 (Order History List)**: Authenticated customers shall be able to view a chronological list of their own submitted orders, showing Order Number, Creation Date, Status, Payment Status, Total Amount, and total item count.
+- **FR-07 (Itemized Order Receipt)**: Customers shall be able to retrieve detailed receipts for any of their own orders, displaying the preserved unit prices, line item quantities, calculated line subtotals, grand total, fulfillment status, and payment status.
 
-### 3.4 Operator Order Management Queue
-- **FR-08 (Operator Incoming Queue)**: Operators shall have access to an operational queue displaying all incoming orders across all customers with filter controls by status (`PENDING`, `ACCEPTED`, `REJECTED`).
+### 3.4 Operator Order Management Queue (Sprint 1)
+- **FR-08 (Operator Incoming Queue)**: Operators shall have access to an operational queue displaying all incoming orders across all customers with filter controls by status (`PENDING`, `ACCEPTED`, `PACKED`, `SHIPPED`, `CANCELLED`, `REJECTED`).
 - **FR-09 (Operator Order Acceptance)**: Operators shall be able to accept an incoming `PENDING` order, transitioning its status to `ACCEPTED`.
-- **FR-10 (Operator Order Rejection)**: Operators shall be able to reject an incoming `PENDING` order, immediately releasing reserved stock back to active inventory.
+- **FR-10 (Operator Order Rejection)**: Operators shall be able to reject an incoming `PENDING` order, immediately and atomically releasing reserved stock back to active inventory.
+
+### 3.5 Catalog Administration & Restocking (Sprint 2)
+- **FR-11 (Catalog Curation & Restocking)**: The system shall allow authorized Operators and Administrators to create new electronic products with unique SKUs, update existing product specifications and active state, and atomically increment warehouse inventory stock quantities.
+
+### 3.6 Customer Order Cancellation (Sprint 2)
+- **FR-12 (Customer Order Cancellation)**: Authenticated customers shall be able to cancel their own orders while the order remains in `PENDING` status. The system shall transition the order to `CANCELLED`, record the cancellation timestamp and reason, and atomically restore all reserved line item quantities to inventory.
+
+### 3.7 Simulated Payment Lifecycle & Fulfillment Progression (Sprint 2)
+- **FR-13 (Simulated Payment & Fulfillment Progression)**: The system shall support a decoupled simulated payment state machine (`UNPAID` ➔ `PAID` ➔ `REFUNDED` / `VOID`) and extended fulfillment progression (`ACCEPTED` ➔ `PACKED` ➔ `SHIPPED`). Simulated payment can be executed by the customer, and cancellation/rejection of paid orders shall automatically trigger a refund.
+
+### 3.8 Operational Reporting & Analytics (Sprint 3 Scope)
+- **FR-14 (Sales & Operational Metrics Dashboard)**: The system shall provide aggregated reporting endpoints (`GET /api/reports/sales-summary`, `GET /api/reports/turnaround`) and an operational UI dashboard for Operators and Administrators, calculating:
+  - Total gross sales revenue and total completed orders across filtered date ranges.
+  - Distribution breakdown of orders across fulfillment statuses (`PENDING`, `ACCEPTED`, `PACKED`, `SHIPPED`, `CANCELLED`, `REJECTED`).
+  - Average fulfillment turnaround duration (time elapsed from order creation to `SHIPPED` status).
+
+### 3.9 Production Security Hardening & Rate Limiting (Sprint 3 Scope)
+- **FR-15 (API Rate Limiting & Sensitive Data Sanitization)**: The system shall protect public authentication endpoints (`/api/auth/login`) against brute-force credential stuffing via token bucket rate limiting (`express-rate-limit`), and enforce strict error envelope sanitization across all environments to eliminate internal stack trace leakage in API responses.
 
 ---
 
@@ -82,14 +108,33 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
   - Customers may only query and view orders where `order.customerId == session.user.id`.
   - Any attempt by a Customer to retrieve an order belonging to another customer via API (`GET /api/orders/:id`) must be rejected with `403 FORBIDDEN` (or `404 NOT_FOUND` to prevent ID enumeration).
 - **BR-05 (Operator Fulfillment Authority)**:
-  - Only authenticated users with role `OPERATOR` or `ADMIN` are authorized to query the operator queue (`GET /api/operator/orders`) or transition order statuses (`PATCH /api/operator/orders/:id/status`).
+  - Only authenticated users with role `OPERATOR` or `ADMIN` are authorized to query the operator queue (`GET /api/operator/orders`), transition fulfillment statuses, or manage catalog inventory.
   - Customers attempting to access operator endpoints must receive `403 FORBIDDEN`.
-- **BR-06 (Order Status Transition State Machine - Sprint 1)**:
-  - Valid transitions:
+- **BR-06 (Order Status Transition State Machine - Fulfillment)**:
+  - Valid fulfillment transitions:
     - `PENDING` ➔ `ACCEPTED` (Operator accept)
     - `PENDING` ➔ `REJECTED` (Operator reject; restores stock)
-  - `ACCEPTED` and `REJECTED` are terminal for Sprint 1 (further shipping/completion states will be introduced in Sprint 2).
-  - Orders cannot transition backwards to `PENDING`.
+    - `PENDING` ➔ `CANCELLED` (Customer cancel; restores stock)
+    - `ACCEPTED` ➔ `PACKED` (Operator pack)
+    - `PACKED` ➔ `SHIPPED` (Operator ship)
+  - `REJECTED`, `CANCELLED`, and `SHIPPED` are terminal fulfillment states.
+  - Orders cannot regress backwards (e.g. `ACCEPTED` cannot return to `PENDING`).
+- **BR-07 (Catalog Soft Deletion & Positive Price Integrity)**:
+  - Products cannot be hard-deleted from PostgreSQL once created, protecting referential integrity of historic `OrderItem` foreign keys.
+  - Discontinuing a product must be performed by setting `isActive = false`. Inactive products are immediately excluded from public catalog queries.
+  - Product unit prices must be strictly positive numbers (`price > 0.00`).
+- **BR-08 (Customer Cancellation Window & Stock Restoral)**:
+  - A customer may cancel an order if and only if its current status is `PENDING`.
+  - Once an operator accepts an order (`ACCEPTED`, `PACKED`, or `SHIPPED`), customer cancellation must be rejected with `409 Conflict` (`ORDER_ALREADY_ACCEPTED`).
+  - Successful cancellation must atomically restore all reserved line item quantities in PostgreSQL within a single database transaction.
+- **BR-09 (Simulated Payment State Machine)**:
+  - Orders initialize with `paymentStatus = 'UNPAID'`.
+  - Customers may transition `UNPAID` to `PAID` via `POST /api/orders/:id/pay`.
+  - Re-paying an already paid order must be rejected with `409 Conflict` (`ORDER_ALREADY_PAID`).
+  - Attempting to pay a `CANCELLED` or `REJECTED` order must be rejected with `422 Unprocessable Entity`.
+- **BR-10 (Automatic Refund on Cancellation/Rejection)**:
+  - If an order with `paymentStatus = 'PAID'` is subsequently cancelled by the customer or rejected by the operator, `paymentStatus` must automatically transition to `REFUNDED` and `refundedAt` must be stamped.
+  - If an order was `UNPAID`, cancellation/rejection sets `paymentStatus = 'VOID'`.
 
 ---
 
@@ -97,16 +142,17 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
 
 | NFR ID | Requirement Name | Measurable Target & Constraint | Verification Method |
 |---|---|---|---|
-| **NFR-01** | Session Security | All non-public endpoints require active cookie-based session authentication (`express-session`). Cookies must be `HttpOnly`, `SameSite=Lax`. Passwords must be hashed using `bcrypt` with salt rounds >= 10. | Automated test suite verifying 401 on unauthenticated requests and checking DB hash format. |
-| **NFR-02** | Atomic Transaction Integrity | Order creation and stock decrement must execute within a database transaction. Partial creations (e.g. order saved but stock not decremented) must never occur. | Automated concurrency/transaction tests with intentionally failing line items verifying complete rollback. |
-| **NFR-03** | Sub-Second API Response | Baseline catalog and order creation API calls must respond within < 200ms under standard local load. | Automated API test timing assertions. |
-| **NFR-04** | Responsive & Accessible UI | Application layout must render cleanly across Mobile (375px), Tablet (768px), and Desktop (1200px+) viewports using standard CSS tokens. Form inputs must have accessible labels. | Playwright responsive viewport validation and visual inspection. |
-| **NFR-05** | Traceability & TDD Discipline | Every Sprint 1 Acceptance Criteria must map to an executable test in the Software Test Specification (STS). | Traceability matrix and passing Vitest test suites. |
+| **NFR-01** | Session Security & RBAC | All non-public endpoints require active cookie-based session authentication (`express-session`). Cookies must be `HttpOnly`, `SameSite=Lax`. Passwords must be hashed using `bcrypt` with salt rounds >= 10. Role checks enforce strict 403 barriers. | Automated test suite verifying 401/403 on unauthenticated and unauthorized requests. |
+| **NFR-02** | Atomic Transaction Integrity | Order creation, cancellation, rejection, and inventory restocking must execute within isolated database transactions. Partial executions must never occur. | Automated concurrency and fault-injection rollback tests asserting stock conservation. |
+| **NFR-03** | Sub-Second Performance | Catalog browsing, order placement, and status updates must respond within < 200ms under standard load. | Automated API test timing assertions. |
+| **NFR-04** | Responsive & Accessible UI | Application layout must render cleanly across Mobile (375px), Tablet (768px), and Desktop (1200px+) viewports. Forms must contain accessible semantic labels and focus states. | Component tests and Playwright responsive viewport validation. |
+| **NFR-05** | Traceability & TDD Discipline | Every Acceptance Criteria across Sprint 1 and Sprint 2 must map to an executable automated test in the Software Test Specification (STS). | Bidirectional traceability matrix and passing Vitest test suites. |
 
 ---
 
 ## 6. Assumptions & Engineering Decisions
 
-1. **Local Authentication & Seed Users**: Sprint 1 uses seeded demo accounts for grading (`customer1@example.com`, `operator1@example.com`, `admin@example.com`) to allow instant evaluation without external email or SMS dependencies.
-2. **Immediate Stock Reservation**: Stock is decremented immediately upon order placement in `PENDING` state. If an operator rejects the order, stock is restored. This guarantees that an order cannot be placed if stock is depleted.
-3. **Currency & Precision**: All financial amounts are stored as `Decimal(10, 2)` in PostgreSQL and presented in US Dollars (`$`) formatted to two decimal places to prevent floating-point rounding inaccuracies.
+1. **Local Authentication & Seed Users**: Demo accounts (`customer1@example.com`, `operator1@example.com`, `admin@example.com`) are seeded deterministically for local testing and grading without third-party email dependencies.
+2. **Immediate Stock Reservation & Atomic Restoral**: Stock is decremented upon order placement in `PENDING` state, eliminating overselling. Customer cancellation or operator rejection restores inventory atomically.
+3. **Currency & Precision**: All financial amounts are stored as `Decimal(10, 2)` in PostgreSQL and presented in US Dollars (`$`) formatted to two decimal places.
+4. **Decoupled Payment Architecture**: Payment status operates independently of fulfillment status, modeling realistic retail operations and preventing combinatorial state explosions.

@@ -45,7 +45,7 @@ describe("Feature 1: User Authentication & Role-Based Session Control", () => {
         data: { passwordHash: DEFAULT_HASH, mustChangePassword: false, isActive: false },
       });
       await prisma.$disconnect();
-    } catch {}
+    } catch { }
   });
 
   // -------------------------------------------------------------------------
