@@ -141,10 +141,19 @@ Follow [the isolated test environment instructions](docs/sprints/sprint-1/f05-te
 for the dedicated `127.0.0.1:55435/techtent_test` container. Never use the development
 database for these suites. Test setup does not automatically initialize or seed it.
 
-Verified results: **93 backend integration/regression tests, 48 backend unit tests,
-and 41 frontend tests passed (182 distinct tests; zero failed or skipped)**.
-Both builds passed. The separate 47-test Feature 5 run is included in the 93,
-not an additional set of tests. Browser E2E and visual checks have not been run.
+### TechTent browser tests
+
+Install root dependencies with `npm ci` and Chromium with `npx playwright install chromium`.
+Use the same disposable database setup and safety variables as the API suites.
+Apply the migrations and seed the synthetic demo accounts with `SEED_DEMO_DATA=true`.
+Set `DEMO_USER_PASSWORD` to a disposable fixture password for both seeding and the browser run.
+Build both packages, then run `npm run test:e2e` from the repository root.
+Playwright starts the built app on loopback port 55436 and verifies the test database identity.
+The three browser journeys create synthetic products and orders in that database. Remove the
+disposable container after verification.
+
+The [Sprint 2 verification report](docs/evidence/sprint-2-verification.md) records actual results
+and remaining release blockers.
 
 ## 7. Operator Fulfillment (Feature 5)
 

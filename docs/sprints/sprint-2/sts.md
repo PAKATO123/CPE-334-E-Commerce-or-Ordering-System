@@ -46,3 +46,18 @@ For each feature branch in Sprint 2, the team executes strict Test-Driven Develo
 2. **Green Stage**: Apply the database migration and implement service functions and routes until all tests pass.
 3. **Refactor Stage**: Optimize transaction locking, extract reusable middleware, and add frontend UI components with unit tests.
 4. **Git Evidence**: Commit history records the initial failing test commit, followed by the passing implementation commit, establishing traceable TDD evidence for grading.
+
+## 4. Release remediation verification
+
+| Test | Acceptance criteria | Execution and expected outcome |
+|---|---|---|
+| TEST-CAT-M07 | AC-CAT-MGMT-03–06 | PostgreSQL API. Reject invalid edits and unauthorized writes. Persist edits and reactivation. Two restocks add both quantities. |
+| TEST-CAN-08 | AC-ORD-CAN-03 | PostgreSQL API. Attempt cancellation in accepted, packed and shipped states. Each returns 409 and preserves the order and stock. |
+| TEST-CAN-09 | AC-ORD-CAN-02, 05, 06 and AC-PAY-07 | PostgreSQL API. Pay a two-line order, then attempt cancellation twice sequentially and concurrently. One succeeds, one conflicts, a refund is recorded, and both stocks are restored once. |
+| TEST-CAN-10 | AC-ORD-CAN-02 | PostgreSQL service integration. Fail after the first real inventory update. Order, payment, timestamps and both stock values roll back. |
+| TEST-PAY-05, 06 | AC-PAY-05, 06 | PostgreSQL API. Reject forward skips and a backward transition after shipping. The stored state remains shipped. |
+| TEST-PAY-08 | AC-PAY-04 and BR-04 | PostgreSQL API. A different customer receives 403. Payment after rejection receives 422 without changing persisted payment metadata. |
+| TEST-PAY-09 | AC-ORD-CAN-05 and AC-PAY-04, 07 | PostgreSQL service integration. Force payment-first and terminal-first schedules for customer cancellation and operator rejection. Preserve the correct refund, terminal error and inventory. |
+| TechTent browser journeys | Sprint 1 continuity, F-06, F-07/F-08 | `e2e/sprint-2.spec.ts`. Verify checkout through acceptance, catalog visibility and persisted stock, and payment through cancellation/refund including a rejected terminal repayment. |
+
+The [Sprint 2 verification report](../../evidence/sprint-2-verification.md) records the local red and green runs. The remediation worktree was verified before any commit or CI run of the changes.
