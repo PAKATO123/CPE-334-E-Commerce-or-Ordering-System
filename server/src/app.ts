@@ -37,6 +37,7 @@ import {
   getTurnaroundMetrics,
   ReportsError,
 } from "./services/reports.js";
+import { loginRateLimiter } from "./middleware/rateLimit.js";
 import {
   requireAuth,
   requireRole,
@@ -105,9 +106,19 @@ app.get("/api/ready", async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({ status: "ready", db: "connected" });
+    res.status(200).json({
+      status: "ok",
+      ready: true,
+      db: "connected",
+      database: "connected",
+    });
   } catch {
-    res.status(503).json({ status: "not_ready" });
+    res.status(503).json({
+      status: "unavailable",
+      ready: false,
+      db: "disconnected",
+      database: "disconnected",
+    });
   }
 });
 
@@ -116,7 +127,7 @@ app.get("/api/ready", async (_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 
 // POST /api/auth/login
-app.post("/api/auth/login", async (req: Request, res: Response) => {
+app.post("/api/auth/login", loginRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -996,10 +1007,23 @@ app.use((_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error("Unhandled server error:", err);
-  return res.status(500).json({
+
+  const isProduction = process.env.NODE_ENV === "production";
+  const statusCode = typeof err.statusCode === "number" ? err.statusCode : 500;
+  let code = err.code || "INTERNAL_ERROR";
+  let message = err.message || "An unexpected internal server error occurred.";
+
+  if (isProduction && statusCode >= 500) {
+    message = "An unexpected internal server error occurred.";
+    if (typeof code === "string" && (code.startsWith("P") || code.includes("Prisma"))) {
+      code = "DATABASE_ERROR";
+    }
+  }
+
+  return res.status(statusCode).json({
     error: {
-      code: "INTERNAL_ERROR",
-      message: err.message || "An unexpected internal server error occurred.",
+      code,
+      message,
     },
   });
 });
