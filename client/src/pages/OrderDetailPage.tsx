@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useContext } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
-import { getOrderByIdApi, cancelOrderApi } from "../api";
-import { OrderData } from "../types/order";
+import { getOrderByIdApi, cancelOrderApi, payOrderApi, processOperatorOrderApi } from "../api";
+import { OrderData, FulfillmentStatus } from "../types/order";
 import { formatUSD } from "../utils/currency";
 import { AuthContext } from "../context/AuthContext";
+import RejectOrderDialog from "../components/operator/RejectOrderDialog";
 
 export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operatorView = false }) => {
   const auth = useContext(AuthContext);
@@ -19,6 +20,19 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
   const [cancelling, setCancelling] = useState<boolean>(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
+
+  // Payment state (F-08)
+  const [showPayModal, setShowPayModal] = useState<boolean>(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("SIMULATED_CARD");
+  const [paying, setPaying] = useState<boolean>(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [paySuccess, setPaySuccess] = useState<string | null>(null);
+
+  // Operator fulfillment action state
+  const [processingOperatorAction, setProcessingOperatorAction] = useState<boolean>(false);
+  const [operatorActionError, setOperatorActionError] = useState<string | null>(null);
+  const [operatorActionNotice, setOperatorActionNotice] = useState<string | null>(null);
+  const [showRejectDialog, setShowRejectDialog] = useState<boolean>(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -74,6 +88,129 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
     }
   };
 
+  const handlePayOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    setPaying(true);
+    setPayError(null);
+    try {
+      const res = await payOrderApi(order.id, selectedPaymentMethod);
+      setOrder((prev) => (prev ? { ...prev, ...res.data } : res.data));
+      setShowPayModal(false);
+      const methodName =
+        selectedPaymentMethod === "SIMULATED_PROMPTPAY"
+          ? "PromptPay"
+          : selectedPaymentMethod === "SIMULATED_MOCK"
+          ? "Mock"
+          : "Credit Card";
+      setPaySuccess(`Payment of ${formatUSD(order.totalAmount)} received via ${methodName}.`);
+    } catch (err: any) {
+      setPayError(err.message || "Failed to process payment.");
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const handleOperatorAction = async (targetStatus: FulfillmentStatus) => {
+    if (!order || processingOperatorAction) return;
+    setProcessingOperatorAction(true);
+    setOperatorActionError(null);
+    setOperatorActionNotice(null);
+    try {
+      await processOperatorOrderApi(order.id, targetStatus);
+      setShowRejectDialog(false);
+      const updated = await getOrderByIdApi(order.id);
+      setOrder(updated.data);
+      setOperatorActionNotice(
+        targetStatus === "ACCEPTED"
+          ? `Order ${order.orderNumber} accepted.`
+          : targetStatus === "PACKED"
+          ? `Order ${order.orderNumber} marked as packed.`
+          : targetStatus === "SHIPPED"
+          ? `Order ${order.orderNumber} marked as shipped.`
+          : `Order ${order.orderNumber} rejected. Reserved inventory has been restored.`
+      );
+    } catch (err: any) {
+      setOperatorActionError(err.message || "Failed to update order status.");
+    } finally {
+      setProcessingOperatorAction(false);
+    }
+  };
+
+  const renderPaymentBadge = (status?: string) => {
+    switch (status) {
+      case "PAID":
+        return (
+          <span
+            data-testid="order-receipt-payment-status"
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              padding: "4px 10px",
+              borderRadius: "12px",
+              backgroundColor: "var(--color-pale-green, #EAF6EF)",
+              color: "var(--color-primary-green, #006B3C)",
+              border: "1px solid #C6E7D2",
+            }}
+          >
+            💳 Paid
+          </span>
+        );
+      case "REFUNDED":
+        return (
+          <span
+            data-testid="order-receipt-payment-status"
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              padding: "4px 10px",
+              borderRadius: "12px",
+              backgroundColor: "#EBF8FF",
+              color: "#2B6CB0",
+              border: "1px solid #BEE3F8",
+            }}
+          >
+            ↩ Refunded
+          </span>
+        );
+      case "VOID":
+        return (
+          <span
+            data-testid="order-receipt-payment-status"
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              padding: "4px 10px",
+              borderRadius: "12px",
+              backgroundColor: "var(--color-readonly-bg, #F0F4F1)",
+              color: "var(--color-text-muted, #718096)",
+              border: "1px solid var(--color-border, #E2E8F0)",
+            }}
+          >
+            ✕ Void
+          </span>
+        );
+      case "UNPAID":
+      default:
+        return (
+          <span
+            data-testid="order-receipt-payment-status"
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              padding: "4px 10px",
+              borderRadius: "12px",
+              backgroundColor: "var(--color-warning-bg, #FEFCBF)",
+              color: "var(--color-warning, #D69E2E)",
+              border: "1px solid #F6E05E",
+            }}
+          >
+            ⚠️ Unpaid
+          </span>
+        );
+    }
+  };
+
   const renderStatusBadge = (status: OrderData["status"]) => {
     switch (status) {
       case "ACCEPTED":
@@ -91,6 +228,40 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
             }}
           >
             ✓ Accepted
+          </span>
+        );
+      case "PACKED":
+        return (
+          <span
+            data-testid="order-receipt-status"
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              padding: "4px 10px",
+              borderRadius: "12px",
+              backgroundColor: "#EBF8FF",
+              color: "#2B6CB0",
+              border: "1px solid #BEE3F8",
+            }}
+          >
+            📦 Packed
+          </span>
+        );
+      case "SHIPPED":
+        return (
+          <span
+            data-testid="order-receipt-status"
+            style={{
+              fontSize: "12px",
+              fontWeight: 700,
+              padding: "4px 10px",
+              borderRadius: "12px",
+              backgroundColor: "#FAF5FF",
+              color: "#6B46C1",
+              border: "1px solid #E9D8FD",
+            }}
+          >
+            🚚 Shipped
           </span>
         );
       case "REJECTED":
@@ -241,6 +412,60 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
         </div>
       )}
 
+      {paySuccess && (
+        <div
+          data-testid="pay-success-banner"
+          style={{
+            backgroundColor: "var(--color-pale-green, #EAF6EF)",
+            borderLeft: "4px solid var(--color-primary-green, #006B3C)",
+            color: "var(--color-primary-green, #006B3C)",
+            padding: "12px 16px",
+            borderRadius: "var(--radius-sm, 6px)",
+            marginBottom: "16px",
+            fontSize: "14px",
+            boxShadow: "var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05))",
+          }}
+        >
+          <strong>Success: </strong> {paySuccess}
+        </div>
+      )}
+
+      {operatorActionNotice && (
+        <div
+          data-testid="operator-action-notice"
+          style={{
+            backgroundColor: "var(--color-pale-green, #EAF6EF)",
+            borderLeft: "4px solid var(--color-primary-green, #006B3C)",
+            color: "var(--color-primary-green, #006B3C)",
+            padding: "12px 16px",
+            borderRadius: "var(--radius-sm, 6px)",
+            marginBottom: "16px",
+            fontSize: "14px",
+            boxShadow: "var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05))",
+          }}
+        >
+          <strong>Success: </strong> {operatorActionNotice}
+        </div>
+      )}
+
+      {operatorActionError && (
+        <div
+          data-testid="operator-action-error"
+          style={{
+            backgroundColor: "var(--color-error-bg, #FFF5F5)",
+            borderLeft: "4px solid var(--color-error, #C53030)",
+            color: "var(--color-error, #C53030)",
+            padding: "12px 16px",
+            borderRadius: "var(--radius-sm, 6px)",
+            marginBottom: "16px",
+            fontSize: "14px",
+            boxShadow: "var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05))",
+          }}
+        >
+          <strong>Error: </strong> {operatorActionError}
+        </div>
+      )}
+
       {/* Main Printable Receipt Card */}
       <div
         className="tt-card tt-receipt-card"
@@ -299,7 +524,10 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
             >
               {order.orderNumber}
             </div>
-            <div>{renderStatusBadge(order.status)}</div>
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+              {renderPaymentBadge(order.paymentStatus)}
+              {renderStatusBadge(order.status)}
+            </div>
           </div>
         </div>
 
@@ -380,6 +608,30 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
             {order.customerEmail && (
               <span style={{ fontSize: "12px", color: "var(--color-text-muted, #718096)", display: "block" }}>
                 {order.customerEmail}
+              </span>
+            )}
+          </div>
+
+          <div>
+            <span style={{ fontSize: "11px", color: "var(--color-text-muted, #718096)", display: "block", textTransform: "uppercase" }}>
+              Payment Information
+            </span>
+            <div style={{ marginTop: "4px" }}>
+              {renderPaymentBadge(order.paymentStatus)}
+            </div>
+            {order.paymentMethod && (
+              <span data-testid="order-receipt-payment-method" style={{ fontSize: "12px", color: "var(--color-text-main, #1A2E22)", display: "block", marginTop: "4px" }}>
+                Method: <strong>{order.paymentMethod === "SIMULATED_CARD" ? "Credit Card (Simulated)" : order.paymentMethod === "SIMULATED_PROMPTPAY" ? "PromptPay (Simulated)" : order.paymentMethod}</strong>
+              </span>
+            )}
+            {order.paidAt && (
+              <span data-testid="order-receipt-paid-at" style={{ fontSize: "11px", color: "var(--color-text-muted, #718096)", display: "block", marginTop: "2px" }}>
+                Paid Date: {new Date(order.paidAt).toLocaleString()}
+              </span>
+            )}
+            {order.refundedAt && (
+              <span data-testid="order-receipt-refunded-at" style={{ fontSize: "11px", color: "var(--color-error, #C53030)", display: "block", marginTop: "2px" }}>
+                Refunded: {new Date(order.refundedAt).toLocaleString()}
               </span>
             )}
           </div>
@@ -508,7 +760,7 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
             gap: "12px",
           }}
         >
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
             <button
               type="button"
               onClick={() => window.print()}
@@ -547,25 +799,87 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
             )}
           </div>
 
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button
-              type="button"
-              onClick={() => navigate(returnPath)}
-              className={isOperator ? "tt-btn tt-btn-primary" : "tt-btn"}
-              data-testid="return-orders-btn"
-              style={{ padding: "8px 18px", fontSize: "13px", fontWeight: 600 }}
-            >
-              {returnLabel}
-            </button>
-            {!isOperator && (
-              <Link
-                to="/"
-                className="tt-btn tt-btn-primary"
-                data-testid="continue-shopping-link"
-                style={{ textDecoration: "none", padding: "8px 18px", fontSize: "13px" }}
-              >
-                Continue Shopping
-              </Link>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            {isOperator ? (
+              <>
+                {order.status === "PENDING" && (
+                  <>
+                    <button
+                      type="button"
+                      data-testid="operator-reject-btn"
+                      className="tt-btn tt-btn-danger"
+                      disabled={processingOperatorAction}
+                      onClick={() => {
+                        setOperatorActionError(null);
+                        setShowRejectDialog(true);
+                      }}
+                      style={{ padding: "9px 18px", fontSize: "13px", fontWeight: 600 }}
+                    >
+                      Reject Order
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="operator-accept-btn"
+                      className="tt-btn tt-btn-primary"
+                      disabled={processingOperatorAction}
+                      onClick={() => handleOperatorAction("ACCEPTED")}
+                      style={{ padding: "9px 20px", fontSize: "13px", fontWeight: 700 }}
+                    >
+                      {processingOperatorAction ? "Processing..." : "Accept Order"}
+                    </button>
+                  </>
+                )}
+                {order.status === "ACCEPTED" && (
+                  <button
+                    type="button"
+                    data-testid="operator-mark-packed-btn"
+                    className="tt-btn tt-btn-primary"
+                    disabled={processingOperatorAction}
+                    onClick={() => handleOperatorAction("PACKED")}
+                    style={{ padding: "9px 20px", fontSize: "13px", fontWeight: 700 }}
+                  >
+                    {processingOperatorAction ? "Processing..." : "Mark Packed"}
+                  </button>
+                )}
+                {order.status === "PACKED" && (
+                  <button
+                    type="button"
+                    data-testid="operator-mark-shipped-btn"
+                    className="tt-btn tt-btn-primary"
+                    disabled={processingOperatorAction}
+                    onClick={() => handleOperatorAction("SHIPPED")}
+                    style={{ padding: "9px 20px", fontSize: "13px", fontWeight: 700 }}
+                  >
+                    {processingOperatorAction ? "Processing..." : "Mark Shipped"}
+                  </button>
+                )}
+              </>
+            ) : (
+              /* Pay Now Button (F-08): Placed on the right side for customer */
+              order.paymentStatus === "UNPAID" &&
+              order.status !== "CANCELLED" &&
+              order.status !== "REJECTED" && (
+                <button
+                  type="button"
+                  data-testid="pay-now-btn"
+                  onClick={() => {
+                    setPayError(null);
+                    setSelectedPaymentMethod("SIMULATED_CARD");
+                    setShowPayModal(true);
+                  }}
+                  className="tt-btn tt-btn-primary"
+                  style={{
+                    padding: "9px 22px",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  💳 Pay Now (Simulated)
+                </button>
+              )
             )}
           </div>
         </div>
@@ -678,6 +992,166 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
                   }}
                 >
                   {cancelling ? "Cancelling..." : "Confirm Cancellation"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Operator Reject Order Dialog (F-08) */}
+      {showRejectDialog && order && (
+        <RejectOrderDialog
+          orderNumber={order.orderNumber}
+          busy={processingOperatorAction}
+          error={operatorActionError}
+          onCancel={() => {
+            setShowRejectDialog(false);
+            setOperatorActionError(null);
+          }}
+          onConfirm={() => handleOperatorAction("REJECTED")}
+        />
+      )}
+
+      {/* Modal: Customer Simulated Payment (F-08) */}
+      {showPayModal && (
+        <div
+          data-testid="pay-order-modal"
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "16px",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--color-surface, #FFFFFF)",
+              borderRadius: "var(--radius-lg, 12px)",
+              maxWidth: "480px",
+              width: "100%",
+              padding: "24px",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+              border: "1px solid var(--color-border, #E2E8F0)",
+            }}
+          >
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: "0 0 8px 0", color: "var(--color-text-main, #1A2E22)" }}>
+              Pay Order {order.orderNumber}
+            </h2>
+            <p style={{ fontSize: "14px", color: "var(--color-text-muted, #718096)", marginBottom: "16px" }}>
+              Total Amount Due: <strong style={{ color: "var(--color-primary-green, #006B3C)" }}>{formatUSD(order.totalAmount)}</strong>
+            </p>
+
+            {payError && (
+              <div
+                data-testid="pay-error-banner"
+                style={{
+                  backgroundColor: "var(--color-error-bg, #FFF5F5)",
+                  color: "var(--color-error, #C53030)",
+                  border: "1px solid var(--color-urgent-border, #FEB2B2)",
+                  padding: "10px 14px",
+                  borderRadius: "var(--radius-sm, 6px)",
+                  fontSize: "13px",
+                  marginBottom: "14px",
+                }}
+              >
+                {payError}
+              </div>
+            )}
+
+            <form onSubmit={handlePayOrder}>
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "8px", color: "var(--color-text-main, #1A2E22)" }}>
+                  Select Payment Method
+                </label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "10px 14px",
+                      borderRadius: "var(--radius-sm, 6px)",
+                      border: "1px solid var(--color-border, #E2E8F0)",
+                      cursor: "pointer",
+                      backgroundColor: selectedPaymentMethod === "SIMULATED_CARD" ? "var(--color-pale-green, #EAF6EF)" : "#FFF",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="SIMULATED_CARD"
+                      data-testid="pay-method-card"
+                      checked={selectedPaymentMethod === "SIMULATED_CARD"}
+                      onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                    />
+                    <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--color-text-main, #1A2E22)" }}>
+                      💳 Credit / Debit Card (Simulated)
+                    </span>
+                  </label>
+
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "10px 14px",
+                      borderRadius: "var(--radius-sm, 6px)",
+                      border: "1px solid var(--color-border, #E2E8F0)",
+                      cursor: "pointer",
+                      backgroundColor: selectedPaymentMethod === "SIMULATED_PROMPTPAY" ? "var(--color-pale-green, #EAF6EF)" : "#FFF",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="SIMULATED_PROMPTPAY"
+                      data-testid="pay-method-promptpay"
+                      checked={selectedPaymentMethod === "SIMULATED_PROMPTPAY"}
+                      onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                    />
+                    <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--color-text-main, #1A2E22)" }}>
+                      📱 PromptPay QR (Simulated)
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPayModal(false)}
+                  style={{
+                    padding: "8px 16px",
+                    border: "1px solid var(--color-border-input, #CBD5E0)",
+                    borderRadius: "var(--radius-sm, 6px)",
+                    backgroundColor: "#FFF",
+                    color: "var(--color-text-main, #1A2E22)",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={paying}
+                  data-testid="confirm-pay-btn"
+                  className="tt-btn tt-btn-primary"
+                  style={{
+                    padding: "8px 20px",
+                    fontWeight: 600,
+                    cursor: paying ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {paying ? "Processing..." : "Complete Payment"}
                 </button>
               </div>
             </form>

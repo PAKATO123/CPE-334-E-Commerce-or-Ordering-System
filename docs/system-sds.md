@@ -14,9 +14,10 @@ The TechTent platform is structured into three logical tiers adhering to strict 
 |  - CatalogPage (Categorized Everyday Tech: Phones, TVs, Tablets, Keyboards)     |
 |  - CartDrawer / OrderCheckout (Item Quantities, Subtotals, Instant Checkout)    |
 |  - OrderHistoryPage & OrderDetailPage (Itemized Receipts, Preserved Prices)     |
-|  - OrderActionModals: Cancel Order Modal, Simulated Payment Modal               |
+|  - OrderActionModals: Cancel Order Modal, Simulated Payment Modal, Reject Dialog |
 |  - OperatorOrdersPage (Queue Filter Bar, Order Cards, Accept/Pack/Ship Actions) |
-|  - ProductManagementPage (/operator/products: CRUD, Soft Toggle, Restock Modal) |
+|  - ManageProductsPage (/operator/products: CRUD, Soft Toggle, Restock, Sorting) |
+|  - OperatorReportsPage (/operator/reports: Sales Summary, Turnaround Metrics)   |
 |  - AuthContext & RoleGuard (Session hydration, Protected Route Guards)          |
 +---------------------------------------------------------------------------------+
                                        │
@@ -250,4 +251,45 @@ stateDiagram-v2
 | `/api/orders/:id/pay` | POST | 401 | Allow | 403 | Allow | Customers can only pay for their own orders |
 | `/api/operator/orders` | GET | 401 | 403 | Allow | Allow | Unrestricted across all customers |
 | `/api/operator/orders/:id/status`| PATCH | 401 | 403 | Allow | Allow | None |
+| `/api/reports/sales-summary` | GET | 401 | 403 | Allow | Allow | Operator & Admin Aggregate View |
+| `/api/reports/turnaround` | GET | 401 | 403 | Allow | Allow | Operator & Admin Aggregate View |
 | `/api/health` / `/api/ready` | GET | Allow | Allow | Allow | Allow | None (Public Probe) |
+
+---
+
+## 5. Sprint 3 Architectural Contracts & Specifications
+
+### 5.1 F-09: Sales Reporting Engine & Operational Metrics (`FR-14`)
+
+- **Objective**: Deliver authoritative store management intelligence for Operators and Administrators.
+- **API Endpoints**:
+  - `GET /api/reports/sales-summary`: Returns aggregated total revenue, total order count, average order value (AOV), and breakdown counts by status across optional query filters (`startDate`, `endDate`).
+    - Response Envelope:
+      ```json
+      {
+        "data": {
+          "totalRevenue": "12845.50",
+          "totalOrders": 42,
+          "averageOrderValue": "305.85",
+          "statusCounts": {
+            "PENDING": 4,
+            "ACCEPTED": 6,
+            "PACKED": 8,
+            "SHIPPED": 20,
+            "CANCELLED": 2,
+            "REJECTED": 2
+          }
+        }
+      }
+      ```
+  - `GET /api/reports/turnaround`: Returns fulfillment turnaround performance metrics computed from order creation to final `SHIPPED` timestamps (average hours/minutes in `PENDING`, `ACCEPTED`, `PACKED`).
+- **Data Access & Performance**:
+  - Leverages PostgreSQL aggregate functions (`SUM`, `COUNT`, `AVG`) indexed over `Order(status, createdAt)` and `Order(paymentStatus)`.
+
+### 5.2 F-10: Production Hardening, Rate Limiting & Error Sanitization (`FR-15`)
+
+- **Objective**: Protect public attack surfaces and prevent server telemetry leakage.
+- **Rate Limiting Middleware**:
+  - `express-rate-limit` mounted on `/api/auth/login` (window: 15 minutes, max: 10 attempts per IP) returning `429 Too Many Requests`.
+- **Error Envelope Sanitization**:
+  - Enforce standard `{ error: { code: string, message: string } }` without exposing internal database stack traces or SQL error details in non-development environments.

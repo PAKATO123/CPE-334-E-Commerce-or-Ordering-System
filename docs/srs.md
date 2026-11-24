@@ -81,8 +81,14 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
 ### 3.7 Simulated Payment Lifecycle & Fulfillment Progression (Sprint 2)
 - **FR-13 (Simulated Payment & Fulfillment Progression)**: The system shall support a decoupled simulated payment state machine (`UNPAID` ➔ `PAID` ➔ `REFUNDED` / `VOID`) and extended fulfillment progression (`ACCEPTED` ➔ `PACKED` ➔ `SHIPPED`). Simulated payment can be executed by the customer, and cancellation/rejection of paid orders shall automatically trigger a refund.
 
-### 3.8 Operational Reporting (Sprint 3 Scope)
-- **FR-14 (Sales & Operational Metrics)**: Deferred to Sprint 3. The system will provide aggregated reporting dashboards for Operators and Administrators, displaying gross revenue, order volume by status, and average fulfillment turnaround durations.
+### 3.8 Operational Reporting & Analytics (Sprint 3 Scope)
+- **FR-14 (Sales & Operational Metrics Dashboard)**: The system shall provide aggregated reporting endpoints (`GET /api/reports/sales-summary`, `GET /api/reports/turnaround`) and an operational UI dashboard for Operators and Administrators, calculating:
+  - Total gross sales revenue and total completed orders across filtered date ranges.
+  - Distribution breakdown of orders across fulfillment statuses (`PENDING`, `ACCEPTED`, `PACKED`, `SHIPPED`, `CANCELLED`, `REJECTED`).
+  - Average fulfillment turnaround duration (time elapsed from order creation to `SHIPPED` status).
+
+### 3.9 Production Security Hardening & Rate Limiting (Sprint 3 Scope)
+- **FR-15 (API Rate Limiting & Sensitive Data Sanitization)**: The system shall protect public authentication endpoints (`/api/auth/login`) against brute-force credential stuffing via token bucket rate limiting (`express-rate-limit`), and enforce strict error envelope sanitization across all environments to eliminate internal stack trace leakage in API responses.
 
 ---
 
