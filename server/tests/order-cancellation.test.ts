@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../src/app.js";
 import { getPrisma } from "../src/prisma.js";
+import { cancelCustomerOrder } from "../src/services/cancellation.js";
+import type { Prisma } from "@prisma/client";
 
 describe("Feature 7: Customer Order Cancellation & Stock Restoral (F-07)", () => {
   const prisma = getPrisma();
@@ -39,10 +41,10 @@ describe("Feature 7: Customer Order Cancellation & Stock Restoral (F-07)", () =>
     // Clean up previous test entities
     try {
       await prisma.orderItem.deleteMany({
-        where: { product: { sku: TEST_SKU } },
+        where: { product: { sku: { startsWith: TEST_SKU } } },
       });
       await prisma.product.deleteMany({
-        where: { sku: TEST_SKU },
+        where: { sku: { startsWith: TEST_SKU } },
       });
     } catch {}
 
@@ -62,10 +64,10 @@ describe("Feature 7: Customer Order Cancellation & Stock Restoral (F-07)", () =>
   afterAll(async () => {
     try {
       await prisma.orderItem.deleteMany({
-        where: { product: { sku: TEST_SKU } },
+        where: { product: { sku: { startsWith: TEST_SKU } } },
       });
       await prisma.product.deleteMany({
-        where: { sku: TEST_SKU },
+        where: { sku: { startsWith: TEST_SKU } },
       });
       await prisma.$disconnect();
     } catch {}
@@ -176,5 +178,87 @@ describe("Feature 7: Customer Order Cancellation & Stock Restoral (F-07)", () =>
     const res2 = await customer1Agent.post("/api/orders/-5/cancel").send({});
     expect(res2.status).toBe(400);
     expect(res2.body.error.code).toBe("INVALID_ID");
+  });
+
+  it.each(["ACCEPTED", "PACKED", "SHIPPED"] as const)("TEST-CAN-08: preserves status and stock when cancellation is denied in %s", async (status) => {
+    const placed = await customer1Agent.post("/api/orders").send({ items: [{ productId: testProduct.id, quantity: 1 }] });
+    expect(placed.status).toBe(201);
+    const { id } = placed.body.data;
+    await prisma.order.update({ where: { id }, data: { status } });
+    const reserved = await prisma.product.findUniqueOrThrow({ where: { id: testProduct.id } });
+    const denied = await customer1Agent.post(`/api/orders/${id}/cancel`).send({});
+    expect(denied.status).toBe(409);
+    expect(denied.body.error.code).toBe("ORDER_NOT_CANCELLABLE");
+    expect(await prisma.order.findUniqueOrThrow({ where: { id } })).toMatchObject({ status, cancelledAt: null });
+    expect(await prisma.product.findUniqueOrThrow({ where: { id: testProduct.id } })).toMatchObject({
+      stockQuantity: reserved.stockQuantity,
+    });
+  });
+
+  it.each(["sequential", "concurrent"] as const)("TEST-CAN-09: restores paid multi-line orders exactly once for %s cancellation", async (mode) => {
+    const second = await prisma.product.create({ data: {
+      sku: `${TEST_SKU}-${mode}`, name: "Second cancellation item", category: "Tests", price: 3, stockQuantity: 8,
+    } });
+    const productIds = [testProduct.id, second.id];
+    const readStocks = async () => (await prisma.product.findMany({
+      where: { id: { in: productIds } }, orderBy: { id: "asc" },
+    })).map((product) => product.stockQuantity);
+    const baseline = await readStocks();
+    const placed = await customer1Agent.post("/api/orders").send({
+      items: [{ productId: testProduct.id, quantity: 1 }, { productId: second.id, quantity: 2 }],
+    });
+    expect(placed.status).toBe(201);
+    const { id } = placed.body.data;
+    expect((await customer1Agent.post(`/api/orders/${id}/pay`).send({ paymentMethod: "SIMULATED_CARD" })).status).toBe(200);
+    expect(await readStocks()).toEqual([baseline[0] - 1, baseline[1] - 2]);
+    const cancel = () => customer1Agent.post(`/api/orders/${id}/cancel`).send({});
+    const responses = mode === "concurrent" ? await Promise.all([cancel(), cancel()]) : [await cancel(), await cancel()];
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+    expect(responses.find((response) => response.status === 409).body.error.code).toBe("ORDER_NOT_CANCELLABLE");
+    const saved = await prisma.order.findUniqueOrThrow({ where: { id } });
+    expect(saved).toMatchObject({ status: "CANCELLED", paymentStatus: "REFUNDED" });
+    expect(saved.paidAt).toBeInstanceOf(Date);
+    expect(saved.refundedAt).toEqual(saved.cancelledAt);
+    expect(saved.refundedAt!.getTime()).toBeGreaterThanOrEqual(saved.paidAt!.getTime());
+    expect(await readStocks()).toEqual(baseline);
+  });
+
+  it("TEST-CAN-10: rolls back order, refund and stock after a real inventory write", async () => {
+    const second = await prisma.product.create({ data: {
+      sku: `${TEST_SKU}-ROLLBACK`, name: "Rollback cancellation item", category: "Tests", price: 3, stockQuantity: 8,
+    } });
+    const placed = await customer1Agent.post("/api/orders").send({
+      items: [{ productId: testProduct.id, quantity: 1 }, { productId: second.id, quantity: 2 }],
+    });
+    expect(placed.status).toBe(201);
+    const { id, customerId } = placed.body.data;
+    expect((await customer1Agent.post(`/api/orders/${id}/pay`).send({ paymentMethod: "SIMULATED_CARD" })).status).toBe(200);
+    const readStocks = () => prisma.product.findMany({
+      where: { id: { in: [testProduct.id, second.id] } }, orderBy: { id: "asc" }, select: { stockQuantity: true },
+    });
+    const before = await readStocks();
+    const injectedFailure = new Error("Injected after the first restoration write");
+    const failureClient = new Proxy(prisma, {
+      get(target, key, receiver) {
+        if (key !== "$transaction") return Reflect.get(target, key, receiver);
+        return (callback: (tx: Prisma.TransactionClient) => Promise<unknown>, options: { isolationLevel: Prisma.TransactionIsolationLevel }) =>
+          target.$transaction((tx) => callback(new Proxy(tx, {
+            get(transaction, property, transactionReceiver) {
+              if (property !== "product") return Reflect.get(transaction, property, transactionReceiver);
+              return {
+                async update(input: Prisma.ProductUpdateArgs) {
+                  await transaction.product.update(input);
+                  throw injectedFailure;
+                },
+              };
+            },
+          })), options);
+      },
+    });
+    await expect(cancelCustomerOrder(failureClient, id, customerId, "CUSTOMER", "Rollback test")).rejects.toBe(injectedFailure);
+    expect(await readStocks()).toEqual(before);
+    expect(await prisma.order.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      status: "PENDING", paymentStatus: "PAID", cancelledAt: null, cancellationReason: null, refundedAt: null,
+    });
   });
 });
