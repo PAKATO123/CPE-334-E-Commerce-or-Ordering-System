@@ -20,6 +20,7 @@ export const SUPPORTED_PAYMENT_METHODS = [
 ] as const;
 
 export type PaymentMethod = (typeof SUPPORTED_PAYMENT_METHODS)[number];
+const terminalOrderStatuses = ["CANCELLED", "REJECTED"];
 
 export function isSupportedPaymentMethod(value: unknown): value is PaymentMethod {
   return typeof value === "string" && (SUPPORTED_PAYMENT_METHODS as readonly string[]).includes(value);
@@ -91,7 +92,7 @@ export async function simulateOrderPayment(
   }
 
   // Cannot pay a cancelled or rejected order
-  if (existing.status === "CANCELLED" || existing.status === "REJECTED") {
+  if (terminalOrderStatuses.includes(existing.status)) {
     throw new PaymentError(
       "CANNOT_PAY_TERMINAL_ORDER",
       "Cannot pay a cancelled or rejected order.",
@@ -108,21 +109,22 @@ export async function simulateOrderPayment(
     );
   }
 
-  const now = new Date();
-
   return await prisma.$transaction(async (tx) => {
     // Atomic status transition guard
     const claimed = await tx.order.updateMany({
-      where: { id: orderId, paymentStatus: "UNPAID" },
+      where: { id: orderId, paymentStatus: "UNPAID", status: { notIn: terminalOrderStatuses } },
       data: {
         paymentStatus: "PAID",
         paymentMethod,
-        paidAt: now,
+        paidAt: new Date(),
       },
     });
 
     if (claimed.count === 0) {
       const current = await tx.order.findUnique({ where: { id: orderId } });
+      if (current && terminalOrderStatuses.includes(current.status)) {
+        throw new PaymentError("CANNOT_PAY_TERMINAL_ORDER", "Cannot pay a cancelled or rejected order.", 422);
+      }
       if (current?.paymentStatus === "PAID") {
         throw new PaymentError("ORDER_ALREADY_PAID", "Order has already been paid.", 409);
       }
@@ -167,5 +169,5 @@ export async function simulateOrderPayment(
         subtotal: Number(item.subtotal).toFixed(2),
       })),
     };
-  });
+  }, { isolationLevel: "ReadCommitted" });
 }
