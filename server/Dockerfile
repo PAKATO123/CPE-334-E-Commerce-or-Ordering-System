@@ -30,7 +30,7 @@ COPY tsconfig.json ./
 COPY src ./src/
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
-RUN npm run build && chmod +x ./docker-entrypoint.sh
+RUN sed -i 's/\r$//' ./docker-entrypoint.sh && npm run build && chmod +x ./docker-entrypoint.sh
 
 # --- Runtime settings ---------------------------------------------------------
 ENV NODE_ENV=production

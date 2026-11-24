@@ -82,7 +82,7 @@ COPY --from=server-builder /app/server/docker-entrypoint.sh ./docker-entrypoint.
 # The built SPA is served by the Express server from /app/client/dist.
 COPY --from=client-builder /app/client/dist /app/client/dist
 
-RUN chmod +x ./docker-entrypoint.sh
+RUN sed -i 's/\r$//' ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
 
 # --- Runtime configuration ----------------------------------------------------
 ENV NODE_ENV=production
