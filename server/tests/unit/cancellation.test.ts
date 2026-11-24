@@ -94,13 +94,14 @@ describe("Order Cancellation Unit Tests (F-07)", () => {
         const tx = {
           order: {
             updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+            update: vi.fn().mockResolvedValue({}),
             findUniqueOrThrow: vi.fn().mockResolvedValue({
               ...mockOrder,
               status: "CANCELLED",
               cancelledAt: new Date("2026-11-22T10:00:00Z"),
               cancellationReason: "Admin override",
               paymentStatus: "VOID",
-            }),
+            }).mockResolvedValueOnce({ paymentStatus: "UNPAID" }),
           },
           product: {
             update: vi.fn().mockResolvedValue({}),
@@ -184,18 +185,20 @@ describe("Order Cancellation Unit Tests (F-07)", () => {
 
       const txProductUpdate = vi.fn().mockResolvedValue({});
       const txOrderUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
+      const txOrderUpdate = vi.fn().mockResolvedValue({});
       const txOrderFindUniqueOrThrow = vi.fn().mockResolvedValue({
         ...mockOrder,
         status: "CANCELLED",
         cancelledAt: new Date("2026-11-22T10:00:00Z"),
         cancellationReason: "Changed my mind",
         paymentStatus: "VOID",
-      });
+      }).mockResolvedValueOnce({ paymentStatus: "UNPAID" });
 
       mockPrisma.$transaction.mockImplementation(async (callback: any) => {
         const tx = {
           order: {
             updateMany: txOrderUpdateMany,
+            update: txOrderUpdate,
             findUniqueOrThrow: txOrderFindUniqueOrThrow,
           },
           product: {
@@ -212,6 +215,10 @@ describe("Order Cancellation Unit Tests (F-07)", () => {
       expect(result.paymentStatus).toBe("VOID");
       expect(result.customerName).toBe("Alice Customer");
       expect(result.items[0].productName).toBe("Pro Phone");
+      expect(txOrderUpdate).toHaveBeenCalledWith({
+        where: { id: 15 },
+        data: expect.objectContaining({ paymentStatus: "VOID", refundedAt: null }),
+      });
 
       // Verify atomic inventory increments for both products
       expect(txProductUpdate).toHaveBeenCalledTimes(2);
@@ -241,10 +248,12 @@ describe("Order Cancellation Unit Tests (F-07)", () => {
 
       mockPrisma.order.findUnique.mockResolvedValue(mockOrder);
 
+      const txOrderUpdate = vi.fn().mockResolvedValue({});
       mockPrisma.$transaction.mockImplementation(async (callback: any) => {
         const tx = {
           order: {
             updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+            update: txOrderUpdate,
             findUniqueOrThrow: vi.fn().mockResolvedValue({
               ...mockOrder,
               status: "CANCELLED",
@@ -252,7 +261,7 @@ describe("Order Cancellation Unit Tests (F-07)", () => {
               cancellationReason: null,
               paymentStatus: "REFUNDED",
               refundedAt: new Date("2026-11-22T10:00:00Z"),
-            }),
+            }).mockResolvedValueOnce({ paymentStatus: "PAID" }),
           },
           product: {
             update: vi.fn().mockResolvedValue({}),
@@ -265,6 +274,10 @@ describe("Order Cancellation Unit Tests (F-07)", () => {
       expect(result.status).toBe("CANCELLED");
       expect(result.paymentStatus).toBe("REFUNDED");
       expect(result.items[0].sku).toBe("CHG-65W");
+      expect(txOrderUpdate).toHaveBeenCalledWith({
+        where: { id: 20 },
+        data: expect.objectContaining({ paymentStatus: "REFUNDED", refundedAt: expect.any(Date) }),
+      });
     });
 
     it("handles race condition if order was accepted between existence check and transaction", async () => {

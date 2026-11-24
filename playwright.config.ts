@@ -2,14 +2,17 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  /* Run tests in files in parallel */
   fullyParallel: false,
-  /* Reporter to use */
+  workers: 1,
   reporter: "list",
-  /* Shared settings for all the projects below */
+  webServer: {
+    command: "node e2e/start-server.mjs",
+    url: "http://127.0.0.1:55436/api/ready",
+    reuseExistingServer: false,
+  },
   use: {
-    baseURL: "http://localhost:5173",
-    trace: "on-first-retry",
+    baseURL: "http://127.0.0.1:55436",
+    trace: "retain-on-failure",
   },
 
   projects: [

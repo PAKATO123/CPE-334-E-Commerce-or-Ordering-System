@@ -182,6 +182,7 @@ describe("Feature 8: Payment State Machine & Extended Fulfillment Progression (F
     });
     expect(step4.status).toBe(409);
     expect(step4.body.error.code).toBe("ORDER_ALREADY_PROCESSED");
+    expect(await prisma.order.findUniqueOrThrow({ where: { id: orderId } })).toMatchObject({ status: "SHIPPED" });
   });
 
   it("TEST-PAY-06: rejects invalid fulfillment step skips with 400 Bad Request (INVALID_TRANSITION)", async () => {
@@ -250,5 +251,26 @@ describe("Feature 8: Payment State Machine & Extended Fulfillment Progression (F
       where: { id: testProduct.id },
     });
     expect(finalProduct.stockQuantity).toBe(stockBefore);
+  });
+
+  it("TEST-PAY-08: denies payment by another customer and after operator rejection", async () => {
+    const placed = await customerAgent.post("/api/orders").send({
+      items: [{ productId: testProduct.id, quantity: 1 }],
+    });
+    expect(placed.status).toBe(201);
+    const { id } = placed.body.data;
+    const path = `/api/orders/${id}/pay`;
+    const input = { paymentMethod: "SIMULATED_CARD" };
+    expect((await otherCustomerAgent.post(path).send(input)).status).toBe(403);
+    expect(await prisma.order.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      paymentStatus: "UNPAID", paidAt: null, paymentMethod: null,
+    });
+    expect((await operatorAgent.patch(`/api/operator/orders/${id}/status`).send({ status: "REJECTED" })).status).toBe(200);
+    const denied = await customerAgent.post(path).send(input);
+    expect(denied.status).toBe(422);
+    expect(denied.body.error.code).toBe("CANNOT_PAY_TERMINAL_ORDER");
+    expect(await prisma.order.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      status: "REJECTED", paymentStatus: "VOID", paidAt: null, paymentMethod: null, refundedAt: null,
+    });
   });
 });

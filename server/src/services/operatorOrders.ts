@@ -46,7 +46,7 @@ export async function processOperatorOrder(
         // Inspect current order state
         const existing = await tx.order.findUnique({
           where: { id },
-          select: { id: true, orderNumber: true, status: true, paymentStatus: true },
+          select: { status: true },
         });
 
         if (!existing) {
@@ -106,23 +106,9 @@ export async function processOperatorOrder(
           }
         }
 
-        const now = new Date();
-        const updateData: any = { status };
-
-        // AC-PAY-07: If an order with paymentStatus === 'PAID' is rejected by operator,
-        // paymentStatus transitions to 'REFUNDED' and refundedAt is stamped. If UNPAID, it transitions to 'VOID'.
-        if (status === "REJECTED") {
-          if (existing.paymentStatus === "PAID") {
-            updateData.paymentStatus = "REFUNDED";
-            updateData.refundedAt = now;
-          } else if (existing.paymentStatus === "UNPAID") {
-            updateData.paymentStatus = "VOID";
-          }
-        }
-
         const claimed = await tx.order.updateMany({
           where: { id, status: existing.status },
-          data: updateData,
+          data: { status },
         });
 
         if (claimed.count !== 1) {
@@ -134,6 +120,20 @@ export async function processOperatorOrder(
         }
 
         if (status === "REJECTED") {
+          // Read under the lock held by the fulfillment claim.
+          const { paymentStatus } = await tx.order.findUniqueOrThrow({
+            where: { id },
+            select: { paymentStatus: true },
+          });
+          if (paymentStatus === "PAID" || paymentStatus === "UNPAID") {
+            await tx.order.update({
+              where: { id },
+              data: {
+                paymentStatus: paymentStatus === "PAID" ? "REFUNDED" : "VOID",
+                refundedAt: paymentStatus === "PAID" ? new Date() : null,
+              },
+            });
+          }
           const items = await tx.orderItem.findMany({
             where: { orderId: id },
             select: { productId: true, quantity: true },

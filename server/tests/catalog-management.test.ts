@@ -248,4 +248,45 @@ describe("Feature 6: Catalog Curation & Inventory Restocking (F-06)", () => {
     const customerRestock = await customerAgent.post("/api/products/1/restock").send({ quantity: 10 });
     expect(customerRestock.status).toBe(403);
   });
+
+  it("TEST-CAT-M07: validates edits, persists visibility, and preserves concurrent increments", async () => {
+    const created = await adminAgent.post("/api/products").send({
+      sku: `${TEST_SKU_PREFIX}PATCH-RESTOCK`, name: "Warehouse Test Speaker",
+      category: "Audio", price: 10, stockQuantity: 5,
+    });
+    expect(created.status).toBe(201);
+    const { id } = created.body.data;
+    const path = `/api/products/${id}`;
+    for (const data of [{ price: 0 }, { price: -1 }, { stockQuantity: -1 }]) {
+      const response = await adminAgent.patch(path).send(data);
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe("VALIDATION_ERROR");
+    }
+    for (const [agent, status] of [[request(app), 401], [customerAgent, 403]] as const) {
+      expect((await agent.patch(path).send({ category: "Unauthorized" })).status).toBe(status);
+      expect((await agent.post(`${path}/restock`).send({ quantity: 9 })).status).toBe(status);
+    }
+    const readProduct = () => prisma.product.findUniqueOrThrow({ where: { id } });
+    const unchanged = await readProduct();
+    expect(unchanged).toMatchObject({ category: "Audio", stockQuantity: 5 });
+    expect(Number(unchanged.price)).toBe(10);
+
+    expect((await adminAgent.patch(path).send({
+      category: "Accessories", description: "Updated description", isActive: false,
+    })).status).toBe(200);
+    expect((await customerAgent.get(path)).status).toBe(404);
+    expect(await readProduct()).toMatchObject({
+      category: "Accessories", description: "Updated description", isActive: false,
+    });
+    expect((await adminAgent.patch(path).send({ isActive: true })).status).toBe(200);
+    const visible = await customerAgent.get(path);
+    expect(visible.status).toBe(200);
+    expect(visible.body.data).toMatchObject({ category: "Accessories", description: "Updated description" });
+
+    const increments = await Promise.all([3, 7].map((quantity) =>
+      operatorAgent.post(`${path}/restock`).send({ quantity })
+    ));
+    expect(increments.map((result) => result.status)).toEqual([200, 200]);
+    expect((await readProduct()).stockQuantity).toBe(15);
+  });
 });

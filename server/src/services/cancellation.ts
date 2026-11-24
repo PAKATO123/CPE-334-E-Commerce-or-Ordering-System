@@ -58,7 +58,7 @@ export async function cancelCustomerOrder(
   // Check order existence and permission before transaction
   const existing = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true },
+    include: { items: { orderBy: [{ productId: "asc" }, { id: "asc" }] } },
   });
 
   if (!existing) {
@@ -78,22 +78,13 @@ export async function cancelCustomerOrder(
     );
   }
 
-  const now = new Date();
   const trimmedReason = reason && reason.trim().length > 0 ? reason.trim() : null;
-  const isPaid = existing.paymentStatus === "PAID";
-  const newPaymentStatus = isPaid ? "REFUNDED" : "VOID";
 
   return await prisma.$transaction(async (tx) => {
     // Atomic status transition check
     const claimed = await tx.order.updateMany({
       where: { id: orderId, status: "PENDING" },
-      data: {
-        status: "CANCELLED",
-        cancelledAt: now,
-        cancellationReason: trimmedReason,
-        paymentStatus: newPaymentStatus,
-        refundedAt: isPaid ? now : null,
-      },
+      data: { status: "CANCELLED" },
     });
 
     if (claimed.count === 0) {
@@ -107,6 +98,23 @@ export async function cancelCustomerOrder(
         409
       );
     }
+
+    // The fulfillment claim holds the row lock. Read payment after any earlier payment commits.
+    const { paymentStatus } = await tx.order.findUniqueOrThrow({
+      where: { id: orderId },
+      select: { paymentStatus: true },
+    });
+    const now = new Date();
+    const isPaid = paymentStatus === "PAID";
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        cancelledAt: now,
+        cancellationReason: trimmedReason,
+        paymentStatus: isPaid ? "REFUNDED" : "VOID",
+        refundedAt: isPaid ? now : null,
+      },
+    });
 
     // Atomically restore reserved inventory for all line items
     for (const item of existing.items) {
@@ -158,5 +166,5 @@ export async function cancelCustomerOrder(
         subtotal: Number(item.subtotal).toFixed(2),
       })),
     };
-  });
+  }, { isolationLevel: "ReadCommitted" });
 }
