@@ -333,3 +333,68 @@ export async function processOperatorOrderApi(
   }
   return json;
 }
+
+export interface SalesSummaryData {
+  totalRevenue: string;
+  totalOrders: number;
+  averageOrderValue: string;
+  statusCounts: {
+    PENDING: number;
+    ACCEPTED: number;
+    PACKED: number;
+    SHIPPED: number;
+    CANCELLED: number;
+    REJECTED: number;
+  };
+  paymentStatusCounts: {
+    UNPAID: number;
+    PAID: number;
+    REFUNDED: number;
+    VOID: number;
+  };
+}
+
+export interface TurnaroundMetricsData {
+  shippedOrderCount: number;
+  averageTurnaroundHours: number;
+  averageTurnaroundMinutes: number;
+  fastestTurnaroundMinutes: number;
+  slowestTurnaroundMinutes: number;
+}
+
+export async function getSalesSummaryApi(
+  startDate?: string,
+  endDate?: string
+): Promise<{ data: SalesSummaryData }> {
+  const params = new URLSearchParams();
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await fetch(`${API_BASE_URL}/api/reports/sales-summary${qs}`, {
+    method: "GET",
+    credentials: "include",
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw Object.assign(new Error(json.error?.message || "Failed to fetch sales summary."), {
+      status: res.status,
+      code: json.error?.code,
+    });
+  }
+  return json;
+}
+
+export async function getTurnaroundMetricsApi(): Promise<{ data: TurnaroundMetricsData }> {
+  const res = await fetch(`${API_BASE_URL}/api/reports/turnaround`, {
+    method: "GET",
+    credentials: "include",
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw Object.assign(new Error(json.error?.message || "Failed to fetch turnaround metrics."), {
+      status: res.status,
+      code: json.error?.code,
+    });
+  }
+  return json;
+}
