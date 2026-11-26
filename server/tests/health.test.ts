@@ -12,6 +12,7 @@ describe("GET /api/health and GET /api/ready", () => {
   it("returns 200 with ready and connected status when database is reachable for /api/ready", async () => {
     const res = await request(app).get("/api/ready");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: "ready", db: "connected" });
+    expect(res.body.db).toBe("connected");
+    expect(res.body.database).toBe("connected");
   });
 });

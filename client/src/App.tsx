@@ -9,6 +9,7 @@ import OrderHistoryPage from "./pages/OrderHistoryPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import OperatorOrdersPage from "./pages/OperatorOrdersPage";
 import ProductManagementPage from "./pages/ProductManagementPage";
+import OperatorReportsPage from "./pages/OperatorReportsPage";
 import LoginPage from "./pages/LoginPage";
 
 function OrderReceiptRoute() {
@@ -37,6 +38,7 @@ export function AppRoutes() {
         <Route element={<RoleGuard allowedRoles={["OPERATOR", "ADMIN"]} />}>
           <Route path="operator/orders" element={<OperatorOrdersPage />} />
           <Route path="operator/products" element={<ProductManagementPage />} />
+          <Route path="operator/reports" element={<OperatorReportsPage />} />
         </Route>
       </Route>
     </Routes>
