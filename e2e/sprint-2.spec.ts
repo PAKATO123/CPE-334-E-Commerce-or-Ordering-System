@@ -151,3 +151,32 @@ test("F-07/F-08 paid customer cancellation persists refund and restores stock", 
     await staff.close();
   }
 });
+
+test("F-09 operator views a persisted sale and customer is denied reports API access", async ({ page, browser, baseURL }) => {
+  const staff = await browser.newPage({ baseURL });
+  try {
+    await signIn(staff, operator);
+    const product = await seedProduct(staff, "Reports Accessory");
+    await signIn(page, customer);
+    const before = await staff.request.get("/api/reports/sales-summary");
+    expect(before.status()).toBe(200);
+    const baseline = (await before.json()).data;
+    await placeOrder(page, product.sku);
+
+    const summary = staff.waitForResponse(response => response.url().includes("/api/reports/sales-summary"));
+    await staff.goto("/operator/reports");
+    const response = await summary;
+    expect(response.status()).toBe(200);
+    const { data } = await response.json();
+    expect(data.totalOrders).toBe(baseline.totalOrders + 1);
+    expect(Number(data.totalRevenue)).toBeCloseTo(Number(baseline.totalRevenue) + product.price, 2);
+    await expect(staff.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(staff.getByText(/Average Order Value/)).toBeVisible();
+    await recordScreenshot(staff, "operator-reports");
+
+    const forbidden = await page.request.get("/api/reports/sales-summary");
+    expect(forbidden.status()).toBe(403);
+  } finally {
+    await staff.close();
+  }
+});

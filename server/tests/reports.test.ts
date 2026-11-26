@@ -17,16 +17,18 @@ describe("Feature 9: Sales Reporting & Turnaround API Integration Tests (F-09)",
     });
 
     operatorAgent = request.agent(app);
-    await operatorAgent.post("/api/auth/login").send({
+    const operatorLogin = await operatorAgent.post("/api/auth/login").send({
       email: "operator1@example.com",
       password: "Password123!",
     });
+    expect(operatorLogin.status).toBe(200);
 
     customerAgent = request.agent(app);
-    await customerAgent.post("/api/auth/login").send({
+    const customerLogin = await customerAgent.post("/api/auth/login").send({
       email: "customer1@example.com",
       password: "Password123!",
     });
+    expect(customerLogin.status).toBe(200);
   });
 
   afterAll(async () => {
@@ -92,5 +94,58 @@ describe("Feature 9: Sales Reporting & Turnaround API Integration Tests (F-09)",
     expect(typeof data.averageTurnaroundMinutes).toBe("number");
     expect(typeof data.fastestTurnaroundMinutes).toBe("number");
     expect(typeof data.slowestTurnaroundMinutes).toBe("number");
+  });
+
+  it("calculates date-bounded totals and turnaround from persisted orders", async () => {
+    const customer = await prisma.user.findUniqueOrThrow({
+      where: { email: "customer1@example.com" },
+    });
+    const createdAt = new Date("2031-01-01T00:00:00Z");
+    const orderNumber = `REP-${crypto.randomUUID()}`;
+    const common = { customerId: customer.id, createdAt };
+    const before = (await operatorAgent.get("/api/reports/turnaround")).body.data;
+
+    await prisma.order.createMany({
+      data: [
+        { ...common, orderNumber: `${orderNumber}-1`, status: "SHIPPED", paymentStatus: "PAID", totalAmount: "25.50", updatedAt: new Date("2031-01-01T02:00:00Z") },
+        { ...common, orderNumber: `${orderNumber}-2`, status: "ACCEPTED", totalAmount: "10.00" },
+        { ...common, orderNumber: `${orderNumber}-3`, status: "CANCELLED", paymentStatus: "REFUNDED", totalAmount: "100.00" },
+        { ...common, orderNumber: `${orderNumber}-4`, createdAt: new Date("2031-01-02T00:00:00Z"), totalAmount: "900.00" },
+      ],
+    });
+    try {
+      const summary = await operatorAgent.get("/api/reports/sales-summary").query({
+        startDate: createdAt.toISOString(),
+        endDate: "2031-01-01T23:59:59.999Z",
+      });
+      expect(summary.status).toBe(200);
+      expect(summary.body.data).toEqual({
+        totalRevenue: "35.50",
+        averageOrderValue: "17.75",
+        totalOrders: 3,
+        statusCounts: { PENDING: 0, ACCEPTED: 1, PACKED: 0, SHIPPED: 1, CANCELLED: 1, REJECTED: 0 },
+        paymentStatusCounts: { UNPAID: 1, PAID: 1, REFUNDED: 1, VOID: 0 },
+      });
+      const turnaround = await operatorAgent.get("/api/reports/turnaround");
+      expect(turnaround.status).toBe(200);
+      expect(turnaround.body.data.shippedOrderCount).toBe(before.shippedOrderCount + 1);
+      expect(turnaround.body.data.fastestTurnaroundMinutes).toBe(
+        before.shippedOrderCount ? Math.min(before.fastestTurnaroundMinutes, 120) : 120,
+      );
+    } finally {
+      await prisma.order.deleteMany({ where: { orderNumber: { startsWith: orderNumber } } });
+    }
+  });
+
+  it("rejects reversed and repeated date filters", async () => {
+    const reversed = await operatorAgent.get("/api/reports/sales-summary").query({
+      startDate: "2031-01-02T00:00:00Z",
+      endDate: "2031-01-01T00:00:00Z",
+    });
+    expect(reversed.status).toBe(400);
+    expect(reversed.body.error.code).toBe("INVALID_DATE");
+    const repeated = await operatorAgent.get("/api/reports/sales-summary?startDate=2031-01-01&startDate=2031-01-02");
+    expect(repeated.status).toBe(400);
+    expect(repeated.body.error.code).toBe("INVALID_DATE");
   });
 });

@@ -71,6 +71,10 @@ export async function getSalesSummary(
     createdAt.lte = end;
   }
 
+  if (createdAt.gte && createdAt.lte && createdAt.gte > createdAt.lte) {
+    throw new ReportsError(400, "INVALID_DATE", "startDate must be on or before endDate.");
+  }
+
   const where = Object.keys(createdAt).length > 0 ? { createdAt } : {};
 
   const [allOrders, nonTerminalOrders] = await Promise.all([

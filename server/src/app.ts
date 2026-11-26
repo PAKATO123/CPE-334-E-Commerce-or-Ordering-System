@@ -931,6 +931,12 @@ app.get(
   async (req: Request, res: Response) => {
     try {
       const { startDate, endDate } = req.query;
+      if (
+        (startDate !== undefined && typeof startDate !== "string") ||
+        (endDate !== undefined && typeof endDate !== "string")
+      ) {
+        throw new ReportsError(400, "INVALID_DATE", "Provide one value per date filter.");
+      }
       const data = await getSalesSummary(getPrisma(), {
         startDate: typeof startDate === "string" ? startDate : undefined,
         endDate: typeof endDate === "string" ? endDate : undefined,
@@ -1009,15 +1015,19 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error("Unhandled server error:", err);
 
   const isProduction = process.env.NODE_ENV === "production";
-  const statusCode = typeof err.statusCode === "number" ? err.statusCode : 500;
+  const statusCode =
+    Number.isInteger(err.statusCode) && err.statusCode >= 400 && err.statusCode <= 599
+      ? err.statusCode
+      : 500;
   let code = err.code || "INTERNAL_ERROR";
   let message = err.message || "An unexpected internal server error occurred.";
 
-  if (isProduction && statusCode >= 500) {
-    message = "An unexpected internal server error occurred.";
-    if (typeof code === "string" && (code.startsWith("P") || code.includes("Prisma"))) {
-      code = "DATABASE_ERROR";
-    }
+  if (isProduction) {
+    const databaseError = typeof code === "string" && /^P\d{4}$/.test(code);
+    code = databaseError ? "DATABASE_ERROR" : statusCode >= 500 ? "INTERNAL_ERROR" : "REQUEST_ERROR";
+    message = statusCode >= 500
+      ? "An unexpected internal server error occurred."
+      : "The request could not be processed.";
   }
 
   return res.status(statusCode).json({

@@ -5,7 +5,7 @@
 ## 1. Feature Contract: F-09 Sales Reporting Engine & Operational Metrics
 
 ### 1.1 Overview & Requirements Linkage
-- **Linked Requirements**: `FR-14`, `BR-05`, `NFR-01`, `NFR-03`, `NFR-05`
+- **Linked Requirements**: `FR-14`, `BR-05`, `NFR-01`, `NFR-03`, `NFR-05
 - **Allocated Sprint**: Sprint 3
 - **Feature Owners**: PAKATO (Backend & Aggregation Service), Joey-pku (Frontend & Dashboard UI)
 - **Description**: Delivers store intelligence for Operators and Administrators. Aggregates gross sales revenue, total order volume, average order value (AOV), fulfillment and payment status breakdowns, and operational fulfillment turnaround times (duration from order creation to final `SHIPPED` status).
@@ -33,19 +33,19 @@ sequenceDiagram
         DB-->>Service: Aggregate results
         Service-->>API: Formatted sales summary envelope
         API-->>UI: 200 OK with sales summary JSON
-        
+
         UI->>API: GET /api/reports/turnaround
         API->>Service: getTurnaroundMetrics()
         Service->>DB: Query shipped orders (createdAt, updatedAt)
         DB-->>Service: Shipped order timestamp records
         Service-->>API: Computed turnaround averages & distribution
         API-->>UI: 200 OK with turnaround metrics JSON
-        
+
         UI-->>Admin: Render KPI cards, status distribution bars, and turnaround table
     end
-```
 
-### 1.3 Architectural & Layer Impact
+
+### 1.3 Architectural & Layer Impac
 - **Presentation Tier**:
   - Add `OperatorReportsPage.tsx` mounted at `/operator/reports`.
   - Add navigation tab "📊 Reports" in the App Navbar, visible exclusively to users with role `OPERATOR` or `ADMIN`.
@@ -95,7 +95,7 @@ sequenceDiagram
       }
     }
   }
-  ```
+
 
 #### GET /api/reports/turnaround
 - **Access**: Authenticated `OPERATOR` or `ADMIN`.
@@ -110,7 +110,7 @@ sequenceDiagram
       "slowestTurnaroundMinutes": 720
     }
   }
-  ```
+
 
 ### 1.5 Acceptance Criteria (AC-REP)
 - **AC-REP-01**: `GET /api/reports/sales-summary` computes authoritative total gross revenue as the sum of `totalAmount` for all non-terminal/valid orders.
@@ -126,7 +126,7 @@ sequenceDiagram
 ## 2. Feature Contract: F-10 Production Security Hardening & Sanitization
 
 ### 2.1 Overview & Requirements Linkage
-- **Linked Requirements**: `FR-15`, `NFR-01`, `NFR-03`, `NFR-05`
+- **Linked Requirements**: `FR-15`, `NFR-01`, `NFR-03`, `NFR-05
 - **Allocated Sprint**: Sprint 3
 - **Feature Owners**: PAKATO (Security Middleware & Probes), Joey-pku (Error Envelopes & Review)
 - **Description**: Hardens public API attack surfaces against credential stuffing and brute force attacks via rate limiting, guarantees zero internal database error/stack trace leakage across all environments, and hardens application health/readiness probe responses.
@@ -134,7 +134,7 @@ sequenceDiagram
 ### 2.2 Security Architecture & Controls
 
 #### Rate Limiting Policy
-- **Target Route**: `POST /api/auth/login`
+- **Target Route**: `POST /api/auth/login
 - **Mechanism**: Token bucket / sliding window rate limiting via `express-rate-limit`.
 - **Configuration**:
   - Window: 15 minutes (`15 * 60 * 1000 ms`).
@@ -149,7 +149,7 @@ sequenceDiagram
         "message": "Too many login attempts from this IP. Please try again after 15 minutes."
       }
     }
-    ```
+
 
 #### Centralized Error Envelope Sanitizer
 - **Mechanism**: Central Express error handling middleware mounted as the terminal handler.
