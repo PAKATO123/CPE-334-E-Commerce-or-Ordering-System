@@ -182,6 +182,28 @@ export const AppShell: React.FC = () => {
       </header>
 
       <main className="tt-main-container">
+        {location.state?.accessDenied && (
+          <div
+            role="alert"
+            style={{
+              maxWidth: "1200px",
+              margin: "16px auto 0 auto",
+              padding: "12px 18px",
+              backgroundColor: "#FFF5F5",
+              color: "#C53030",
+              border: "1px solid #FEB2B2",
+              borderRadius: "8px",
+              fontSize: "14px",
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <span>⚠️</span>
+            <span>{location.state?.accessMessage || "Access Denied: You do not have permission to view that page."}</span>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

@@ -42,6 +42,13 @@ describe("F-05 real application route protection", () => {
     expect(api.getOperatorOrdersApi).not.toHaveBeenCalled();
     expect(screen.queryByRole("link", { name: "Operator Queue" })).not.toBeInTheDocument();
   });
+  it("redirects customers to catalog with an access alert banner when unauthorized (UAT-TT-04 / DR-01)", async () => {
+    renderRoute("CUSTOMER", "/operator/orders");
+    await screen.findByText("Discover Your Next Tech Upgrade");
+    expect(api.getOperatorOrdersApi).not.toHaveBeenCalled();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/access denied|permission/i);
+  });
   it.each(["OPERATOR", "ADMIN"] as const)("permits %s and hides customer-only navigation", async role => {
     renderRoute(role);
     await screen.findByRole("heading", { name: "Operator Orders Queue" });
