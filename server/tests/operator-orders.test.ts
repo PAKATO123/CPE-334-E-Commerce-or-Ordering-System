@@ -321,7 +321,7 @@ describe("F-01 through F-05 integration", () => {
     expect(catalog.body.data.find((product: { id: number }) => product.id === products[0].id).stockQuantity).toBe(7);
     const placed = await customer.post("/api/orders").send({ items: [{ productId: products[0].id, quantity: 2 }] });
     expect(placed.status).toBe(201);
-    expect(placed.body.data.totalAmount).toBe("15.00");
+    expect(placed.body.data.totalAmount).toBe("30.00");
     expect(await stocks()).toEqual([5, 15]);
     await prisma.product.update({ where: { id: products[0].id }, data: { price: "999.00" } });
     const processed = await operator.patch(`/api/operator/orders/${placed.body.data.id}/status`).send({ status });
@@ -333,7 +333,7 @@ describe("F-01 through F-05 integration", () => {
     for (const agent of [customer, operator, admin]) {
       const receipt = await agent.get(`/api/orders/${placed.body.data.id}`);
       expect(receipt.status).toBe(200);
-      expect(receipt.body.data).toMatchObject({ status, totalAmount: "15.00" });
+      expect(receipt.body.data).toMatchObject({ status, totalAmount: "30.00" });
       expect(receipt.body.data.items[0]).toMatchObject({ unitPrice: "7.50", quantity: 2, subtotal: "15.00" });
     }
     const forbidden = await other.get(`/api/orders/${placed.body.data.id}`);

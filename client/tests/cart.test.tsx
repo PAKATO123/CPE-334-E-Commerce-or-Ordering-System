@@ -145,7 +145,10 @@ describe("Feature 3: Cart Assembly & Order Placement (F-03)", () => {
       orderNumber: "ORD-20261102-0001",
       customerId: 1,
       status: "PENDING",
-      totalAmount: "1057.00",
+      subtotal: "1057.00",
+      discountAmount: "105.70",
+      shippingFee: "0.00",
+      totalAmount: "951.30",
       createdAt: "2026-11-02T15:00:00.000Z",
       items: [
         {

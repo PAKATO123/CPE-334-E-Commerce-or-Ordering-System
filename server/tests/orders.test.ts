@@ -146,8 +146,8 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
     expect(res.body.data).toBeDefined();
     expect(res.body.data.orderNumber).toMatch(/^ORD-\d{8}-\d{4}$/);
     expect(res.body.data.status).toBe("PENDING");
-    // Authoritative total: 899.00 * 1 + 79.00 * 2 = 1057.00
-    expect(res.body.data.totalAmount).toBe("1057.00");
+    // $1,057.00 merchandise qualifies for 10% off and free delivery.
+    expect(res.body.data.totalAmount).toBe("951.30");
     expect(res.body.data.items.length).toBe(2);
 
     const phoneItem = res.body.data.items.find((i: any) => i.productId === phone.id);
@@ -199,7 +199,7 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
     });
 
     expect(res.status).toBe(201);
-    expect(res.body.data.totalAmount).toBe("899.00");
+    expect(res.body.data.totalAmount).toBe("854.05");
     expect(res.body.data.items[0].unitPrice).toBe("899.00");
     expect(res.body.data.items[0].subtotal).toBe("899.00");
   });
@@ -432,7 +432,7 @@ describe("Feature 3: Multi-Item Order Assembly & Atomic Persistence (F-03)", () 
       const receiptRes = await customer.get(`/api/orders/${orderId}`);
       expect(receiptRes.status).toBe(200);
       expect(receiptRes.body.data.id).toBe(orderId);
-      expect(receiptRes.body.data.totalAmount).toBe("899.00");
+      expect(receiptRes.body.data.totalAmount).toBe("854.05");
 
       const item = receiptRes.body.data.items[0];
       expect(item.unitPrice).toBe("899.00"); // Must stay 899.00, NOT 950.00!

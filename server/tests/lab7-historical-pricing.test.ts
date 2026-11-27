@@ -28,7 +28,7 @@ beforeEach(async () => {
 
   // Represent the values produced by the Lab 7 migration for a pre-existing order.
   await prisma.order.update({ where: { id: orderId }, data: {
-    subtotal: "0.00", discountAmount: "0.00", shippingFee: "0.00", totalAmount: "500.00",
+    usesLab7Pricing: false, subtotal: "0.00", discountAmount: "0.00", shippingFee: "0.00", totalAmount: "500.00",
     createdAt: new Date("2026-11-20T00:00:00Z"),
   } });
   await prisma.product.update({ where: { id: productId }, data: { price: "600.00" } });

@@ -373,26 +373,13 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
   });
 
   // Robust pricing calculations for receipt view (CR-LAB7-01 / BR-01)
-  const itemsSum = order.items.reduce((sum, item) => sum + (parseFloat(item.subtotal) || 0), 0);
-  const rawSubtotal = Number(order.subtotal) > 0 ? Number(order.subtotal) : itemsSum;
-
-  let discountVal = Number(order.discountAmount || 0);
-  let discountRate = 0;
-  if (discountVal === 0 && rawSubtotal >= 500) {
-    discountRate = rawSubtotal >= 1000 ? 0.10 : 0.05;
-    discountVal = Math.round(rawSubtotal * discountRate * 100) / 100;
-  } else if (discountVal > 0 && rawSubtotal > 0) {
-    discountRate = rawSubtotal >= 1000 ? 0.10 : 0.05;
-  }
-
-  const netMerchandise = rawSubtotal - discountVal;
-  const shippingVal = order.shippingFee !== undefined && Number(order.shippingFee) >= 0
-    ? Number(order.shippingFee)
-    : (netMerchandise >= 200 ? 0 : 15.00);
-
-  const grandTotalVal = Number(order.totalAmount) < rawSubtotal && Number(order.totalAmount) > 0
-    ? Number(order.totalAmount)
-    : (discountVal > 0 ? Math.round((netMerchandise + shippingVal) * 100) / 100 : Number(order.totalAmount));
+  const grandTotalVal = Number(order.totalAmount);
+  const rawSubtotal = Number(order.subtotal ?? order.totalAmount);
+  const discountVal = Number(order.discountAmount ?? 0);
+  const shippingVal = Number(order.shippingFee ?? 0);
+  const discountRate = discountVal > 0 && rawSubtotal > 0
+    ? Math.round(discountVal / rawSubtotal * 100) / 100
+    : 0;
 
   return (
     <div className="receipt-page-container" style={{ maxWidth: "840px", margin: "0 auto", padding: "28px 20px" }}>
