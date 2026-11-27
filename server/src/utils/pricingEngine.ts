@@ -21,8 +21,24 @@ export interface OrderPricingSummary {
   totalAmount: string;
 }
 
+export function serializeOrderPricing(order: {
+  usesLab7Pricing: boolean;
+  totalAmount: { toFixed: (digits: number) => string };
+  subtotal: { toFixed: (digits: number) => string };
+  discountAmount: { toFixed: (digits: number) => string };
+  shippingFee: { toFixed: (digits: number) => string };
+}): OrderPricingSummary {
+  const totalAmount = order.totalAmount.toFixed(2);
+  return {
+    subtotal: order.usesLab7Pricing ? order.subtotal.toFixed(2) : totalAmount,
+    discountAmount: order.usesLab7Pricing ? order.discountAmount.toFixed(2) : "0.00",
+    shippingFee: order.usesLab7Pricing ? order.shippingFee.toFixed(2) : "0.00",
+    totalAmount,
+  };
+}
+
 export function calculateOrderTotals(itemsSubtotal: number): OrderPricingSummary {
-  if (typeof itemsSubtotal !== "number" || isNaN(itemsSubtotal) || itemsSubtotal < 0) {
+  if (!Number.isFinite(itemsSubtotal) || itemsSubtotal < 0) {
     throw new Error("Invalid items subtotal");
   }
 

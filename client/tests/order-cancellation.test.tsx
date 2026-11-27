@@ -129,8 +129,8 @@ describe("Feature 7: Customer Order Cancellation Component (F-07)", () => {
     // Verify all item details and date remain displayed without reload
     expect(screen.getByText("Flagship Pro Smartphone 256GB")).toBeInTheDocument();
     expect(screen.getByText("PHON-PRO-256")).toBeInTheDocument();
-    expect(screen.getByTestId("order-receipt-original-total")).toHaveTextContent("$899.00");
-    expect(screen.getByTestId("order-receipt-grand-total")).toHaveTextContent("$854.05");
+    expect(screen.queryByTestId("order-receipt-original-total")).not.toBeInTheDocument();
+    expect(screen.getByTestId("order-receipt-grand-total")).toHaveTextContent("$899.00");
   });
 
   it("displays error banner in modal when cancellation API returns 409 conflict", async () => {

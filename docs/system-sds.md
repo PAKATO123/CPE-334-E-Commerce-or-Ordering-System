@@ -296,3 +296,11 @@ stateDiagram-v2
   - `express-rate-limit` mounted on `/api/auth/login` (window: 15 minutes, max: 10 attempts per IP) returning `429 Too Many Requests`.
 - **Error Envelope Sanitization**:
   - Enforce standard `{ error: { code: string, message: string } }` without exposing internal database stack traces or SQL error details in non-development environments.
+
+## CR-LAB7-01 persisted pricing and migration contract (Phase 2 review draft)
+
+- Orders created before the Lab 7 pricing change retain the original stored `totalAmount`. Their effective subtotal equals that stored total, and discount and shipping are both $0.00. Never apply current pricing retrospectively.
+- New orders use the Lab 7 rules at checkout and retain the resulting persisted breakdown. History, receipts, operator views, payment responses and cancellation use the authoritative persisted total. Catalog price changes do not affect stored line snapshots.
+- Preserve ownership checks, stock reservation and restoration, and atomic checkout and terminal transitions. A zero pricing field alone is not a reliable version marker. Review legacy identification or backfill before implementation.
+
+The pricing migration introduces decimal fields with zero defaults. For pre-Lab 7 rows, the effective breakdown must be derived from stored `totalAmount` or populated by a preservation-only backfill. Never change stored totals or reprice line items during migration or serialization. Verify the migration and rollback strategy on representative historical data before release.

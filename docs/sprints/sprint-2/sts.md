@@ -61,3 +61,7 @@ For each feature branch in Sprint 2, the team executes strict Test-Driven Develo
 | TechTent browser journeys | Sprint 1 continuity, F-06, F-07/F-08 | `e2e/sprint-2.spec.ts`. Verify checkout through acceptance, catalog visibility and persisted stock, and payment through cancellation/refund including a rejected terminal repayment. |
 
 The [Sprint 2 verification report](../../evidence/sprint-2-verification.md) records the local red and green runs. The remediation worktree was verified before any commit or CI run of the changes.
+
+## CR-LAB7-01 payment and cancellation regression scope
+
+Retain TEST-CAN-01 through 06, TEST-CAN-08 through 10, and TEST-PAY-01 through 09. Run the applicable payment, cancellation, state-guard and ownership cases with both legacy and new pricing fixtures. Cross-reference [LAB7-STS-04 through 06](../sprint-1/sts.md#cr-lab7-01-maintenance-test-plan-phase-2-review-draft) for the persisted-total, refund, inventory and isolation expectations. Phase 2 has not executed these cases.

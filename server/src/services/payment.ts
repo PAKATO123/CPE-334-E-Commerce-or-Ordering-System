@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { Role } from "../middleware/auth.js";
-import { calculateOrderTotals } from "../utils/pricingEngine.js";
+import { serializeOrderPricing } from "../utils/pricingEngine.js";
 
 export class PaymentError extends Error {
   readonly status: number;
@@ -144,22 +144,6 @@ export async function simulateOrderPayment(
     });
 
     const totalItemsCount = updated.items.reduce((sum, item) => sum + item.quantity, 0);
-    const itemsRawSubtotal = updated.items.reduce((sum, item) => sum + Number(item.subtotal), 0);
-    let subtotalStr = Number(updated.subtotal) > 0 ? Number(updated.subtotal).toFixed(2) : "";
-    let discountAmountStr = Number(updated.discountAmount || 0).toFixed(2);
-    let shippingFeeStr = Number(updated.shippingFee || 0).toFixed(2);
-    let totalAmountStr = Number(updated.totalAmount).toFixed(2);
-
-    if ((Number(updated.subtotal) === 0 || Number(updated.discountAmount) === 0) && itemsRawSubtotal >= 500) {
-      const recalculated = calculateOrderTotals(itemsRawSubtotal);
-      subtotalStr = recalculated.subtotal;
-      discountAmountStr = recalculated.discountAmount;
-      shippingFeeStr = recalculated.shippingFee;
-      totalAmountStr = recalculated.totalAmount;
-    } else if (!subtotalStr) {
-      subtotalStr = itemsRawSubtotal > 0 ? itemsRawSubtotal.toFixed(2) : totalAmountStr;
-    }
-
     return {
       id: updated.id,
       orderNumber: updated.orderNumber,
@@ -170,10 +154,7 @@ export async function simulateOrderPayment(
       paymentStatus: updated.paymentStatus,
       paymentMethod: updated.paymentMethod!,
       paidAt: updated.paidAt!.toISOString(),
-      subtotal: subtotalStr,
-      discountAmount: discountAmountStr,
-      shippingFee: shippingFeeStr,
-      totalAmount: totalAmountStr,
+      ...serializeOrderPricing(updated),
       itemCount: totalItemsCount,
       lineItemCount: updated.items.length,
       createdAt: updated.createdAt.toISOString(),
