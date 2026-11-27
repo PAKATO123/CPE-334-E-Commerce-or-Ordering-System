@@ -94,9 +94,20 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
 
 ## 4. Business Rules (BR)
 
-- **BR-01 (Authoritative Server-Side Price Calculation)**:
-  - All line item subtotals (`unitPrice * quantity`) and order grand totals (`SUM(subtotals)`) must be computed authoritatively by the server using active catalog database records.
-  - Client-submitted totals, subtotals, or price overrides must be ignored or rejected with `400 BAD_REQUEST`.
+- **BR-01 (Authoritative Server-Side Price Calculation & Tiered Incentives)**:
+  - All line item subtotals (`unitPrice * quantity`), merchandise subtotal (`SUM(subtotals)`), volume discounts, and shipping fees must be computed authoritatively by the server inside the database transaction.
+  - **Volume Discount Tiers**:
+    - Items Subtotal $\ge \$1,000.00 \implies 10\%$ volume discount on merchandise subtotal.
+    - Items Subtotal $\ge \$500.00$ and $< \$1,000.00 \implies 5\%$ volume discount on merchandise subtotal.
+    - Items Subtotal $< \$500.00 \implies 0\%$ volume discount.
+  - **Shipping Fee & Free Shipping Threshold**:
+    - Net merchandise value = $\text{subtotal} - \text{discountAmount}$.
+    - If net merchandise value $\ge \$200.00 \implies \text{shippingFee} = \$0.00$ (Free Shipping).
+    - If net merchandise value $< \$200.00 \implies \text{shippingFee} = \$15.00$ (Flat Delivery Fee).
+  - **Grand Total Calculation**:
+    - $\text{totalAmount} = \text{round}(\text{subtotal} - \text{discountAmount} + \text{shippingFee}, 2)$.
+  - Client-submitted totals, subtotals, discount overrides, or shipping fee overrides must be ignored or rejected. The server calculation is 100% authoritative.
+  - The `Order` entity permanently records `subtotal`, `discountAmount`, `shippingFee`, and `totalAmount`.
 - **BR-02 (Historic Price Preservation)**:
   - At the moment an order is created, the active unit price of each catalog item must be copied into the `OrderItem` record.
   - Subsequent updates to catalog product prices shall have zero effect on historic order items or past order totals.

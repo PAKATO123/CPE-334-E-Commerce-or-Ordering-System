@@ -97,6 +97,9 @@ erDiagram
         datetime cancelledAt
         datetime refundedAt
         string cancellationReason
+        decimal subtotal "10,2"
+        decimal discountAmount "10,2"
+        decimal shippingFee "10,2"
         decimal totalAmount "10,2"
         datetime createdAt
         datetime updatedAt
