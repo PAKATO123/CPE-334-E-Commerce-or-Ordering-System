@@ -24,7 +24,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ allowedRoles, children }) 
   }
 
   if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace state={{ accessDenied: true }} />;
+    return <Navigate to="/" replace />;
   }
 
   return children ? <>{children}</> : <Outlet />;
