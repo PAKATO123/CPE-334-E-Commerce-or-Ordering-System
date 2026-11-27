@@ -107,7 +107,10 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
   - **Grand Total Calculation**:
     - $\text{totalAmount} = \text{round}(\text{subtotal} - \text{discountAmount} + \text{shippingFee}, 2)$.
   - Client-submitted totals, subtotals, discount overrides, or shipping fee overrides must be ignored or rejected. The server calculation is 100% authoritative.
-  - The `Order` entity permanently records `subtotal`, `discountAmount`, `shippingFee`, and `totalAmount`.
+  - The `Order` entity permanently records `subtotal`, `discountAmount`, `shippingFee`, and `totalAmount` for new orders. At $205.00 both discount and shipping are zero. Discounted orders always ship free because the minimum discounted net is $475.00.
+  - Orders created before the Lab 7 pricing change retain the original stored `totalAmount`. Their effective subtotal equals that stored total, and discount and shipping are both $0.00. Never apply current pricing retrospectively.
+  - New orders use the Lab 7 rules at checkout and retain the resulting persisted breakdown. History, receipts, operator views, payment responses and cancellation use the authoritative persisted total. Catalog price changes do not affect stored line snapshots.
+  - Preserve ownership checks, stock reservation and restoration, and atomic checkout and terminal transitions. A zero pricing field alone is not a reliable version marker. Review legacy identification or backfill before implementation.
 - **BR-02 (Historic Price Preservation)**:
   - At the moment an order is created, the active unit price of each catalog item must be copied into the `OrderItem` record.
   - Subsequent updates to catalog product prices shall have zero effect on historic order items or past order totals.
