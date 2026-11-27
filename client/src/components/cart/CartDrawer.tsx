@@ -393,6 +393,34 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderSuccess }) => {
               marginTop: "16px",
             }}
           >
+            {/* Promotional Volume & Shipping Incentive Banner */}
+            <div
+              data-testid="cart-incentive-banner"
+              style={{
+                backgroundColor: "#F0FFF4",
+                border: "1px solid #C6F6D5",
+                borderRadius: "6px",
+                padding: "8px 12px",
+                marginBottom: "12px",
+                fontSize: "12px",
+                color: "#22543D",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <span>{totalAmount >= 1000 ? "✨" : totalAmount >= 500 ? "🔥" : totalAmount >= 200 ? "🎉" : "🚚"}</span>
+              <span>
+                {totalAmount >= 1000
+                  ? "10% volume discount & Free Shipping applied at checkout!"
+                  : totalAmount >= 500
+                  ? `5% volume discount applied! Add ${formatUSD(1000 - totalAmount)} for 10% off.`
+                  : totalAmount >= 200
+                  ? `Free Shipping applied! Add ${formatUSD(500 - totalAmount)} for 5% volume discount.`
+                  : `Add ${formatUSD(200 - totalAmount)} for Free Shipping (Standard: $15.00).`}
+              </span>
+            </div>
+
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
               <span style={{ fontSize: "14px", color: "#4A5568" }}>Estimated Total:</span>
               <span

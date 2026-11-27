@@ -10,6 +10,7 @@ import bcrypt from "bcryptjs";
 import { sessionConfig } from "./utils/sessionConfig.js";
 import { getPrisma } from "./prisma.js";
 import { generateOrderNumber } from "./utils/orderNumber.js";
+import { calculateOrderTotals } from "./utils/pricingEngine.js";
 import {
   isOperatorOrderStatus,
   listOperatorOrders,
@@ -538,6 +539,9 @@ app.post(
           };
         });
 
+        // Authoritative Volume Discount & Shipping Calculation (CR-LAB7-01 / BR-01 Revised)
+        const pricing = calculateOrderTotals(grandTotal);
+
         // Generate unique order number (FR-05)
         const orderNumber = await generateOrderNumber(tx);
 
@@ -547,7 +551,10 @@ app.post(
             orderNumber,
             customerId: req.session.user!.id,
             status: "PENDING",
-            totalAmount: grandTotal.toFixed(2),
+            subtotal: pricing.subtotal,
+            discountAmount: pricing.discountAmount,
+            shippingFee: pricing.shippingFee,
+            totalAmount: pricing.totalAmount,
             items: {
               create: lineItemsData.map((li) => ({
                 productId: li.productId,
@@ -585,6 +592,9 @@ app.post(
           customerId: result.customerId,
           status: result.status,
           paymentStatus: result.paymentStatus || "UNPAID",
+          subtotal: Number(result.subtotal).toFixed(2),
+          discountAmount: Number(result.discountAmount).toFixed(2),
+          shippingFee: Number(result.shippingFee).toFixed(2),
           totalAmount: Number(result.totalAmount).toFixed(2),
           createdAt: result.createdAt.toISOString(),
           items: result.items.map((item) => ({
@@ -656,6 +666,9 @@ app.get(
           cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
           cancellationReason: order.cancellationReason || null,
           refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
+          subtotal: Number(order.subtotal) > 0 ? Number(order.subtotal).toFixed(2) : Number(order.totalAmount).toFixed(2),
+          discountAmount: Number(order.discountAmount || 0).toFixed(2),
+          shippingFee: Number(order.shippingFee || 0).toFixed(2),
           totalAmount: Number(order.totalAmount).toFixed(2),
           itemCount: totalItemsCount,
           lineItemCount: order.items.length,
@@ -743,6 +756,9 @@ app.get(
           cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
           cancellationReason: order.cancellationReason || null,
           refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
+          subtotal: Number(order.subtotal) > 0 ? Number(order.subtotal).toFixed(2) : Number(order.totalAmount).toFixed(2),
+          discountAmount: Number(order.discountAmount || 0).toFixed(2),
+          shippingFee: Number(order.shippingFee || 0).toFixed(2),
           totalAmount: Number(order.totalAmount).toFixed(2),
           itemCount: totalItemsCount,
           lineItemCount: order.items.length,

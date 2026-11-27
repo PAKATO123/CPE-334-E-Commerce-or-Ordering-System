@@ -718,11 +718,19 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
           <div style={{ width: "100%", maxWidth: "320px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "14px", color: "var(--color-text-muted, #718096)" }}>
               <span>Items Subtotal:</span>
-              <span>{formatUSD(order.totalAmount)}</span>
+              <span data-testid="order-receipt-subtotal">{formatUSD(order.subtotal || order.totalAmount)}</span>
             </div>
+            {Number(order.discountAmount) > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "14px", color: "var(--color-primary-green, #006B3C)" }}>
+                <span>Volume Discount Savings:</span>
+                <span data-testid="order-receipt-discount">-{formatUSD(order.discountAmount!)}</span>
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "14px", color: "var(--color-text-muted, #718096)" }}>
               <span>Standard Electronics Delivery:</span>
-              <span style={{ color: "var(--color-secondary-green, #0B7A46)", fontWeight: 600 }}>FREE</span>
+              <span data-testid="order-receipt-shipping" style={{ color: Number(order.shippingFee) > 0 ? "var(--color-text-main, #1A2E22)" : "var(--color-secondary-green, #0B7A46)", fontWeight: 600 }}>
+                {Number(order.shippingFee) > 0 ? formatUSD(order.shippingFee!) : "FREE"}
+              </span>
             </div>
             <div
               style={{
