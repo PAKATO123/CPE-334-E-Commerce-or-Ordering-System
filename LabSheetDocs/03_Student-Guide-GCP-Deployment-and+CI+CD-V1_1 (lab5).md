@@ -416,7 +416,7 @@ Assign roles<br>Roles are composed of sets of permissions and determine what the
 
 
 <!-- Start of picture text -->
-= Filter Enter property name or value<br>© type Principal 4 Name Role Security insights @<br>Os cpe334test26@gmail.com CPE334-test Owner va<br>oes HER e.g ait.com Editor c<br><!-- End of picture text -->
+= Filter Enter property name or value<br>© type Principal 4 Name Role Security insights @<br>Os owner@example.com CPE334-test Owner va<br>oes HER e.g ait.com Editor c<br><!-- End of picture text -->
 
 6. Ask each teammate to open **<u>console.cloud.google.com</u>** , select your project in the project picker, and confirm they can see it. 
 
