@@ -44,7 +44,7 @@ class WorkflowGuards(unittest.TestCase):
 
     def test_custom_ci_checks_staging_and_runs_workflow_guards(self):
         ci = (ROOT / ".github/workflows/ci-docker.yml").read_text(encoding="utf-8")
-        self.assertRegex(ci, r"(?m)^    branches: \[main, lab-5-staging\]$")
+        self.assertRegex(ci, r"(?m)^    branches: \[main, lab-5-staging, lab-6-staging\]$")
         self.assertIn("workflow_call", mapping_keys(ci, "on"))
         self.assertIn("unittest discover -s deploy/tests -p 'test_*.py'", ci)
 
