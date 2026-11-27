@@ -315,3 +315,9 @@
 - **AC-SEC-02**: Customer role attempting to call `GET /api/operator/orders` or `PATCH /api/operator/orders/:id/status` is blocked with `403 Forbidden`.
 
 All four criteria have passing automated implementation evidence; see the [integration review](f05-integration-review.md) for test mapping and verification limits.
+
+## CR-LAB7-01 maintenance addendum (Phase 2 review draft)
+
+The original Sprint 1 scenarios above remain the baseline. For the maintained release, F-03 (FR-03/04, BR-01, AC-ORD-01/02 and AC-BR-01) applies the [CR pricing rules](../../lab7-maintenance-change-request.md#32-proposed-new-rule-br-01-revised---tiered-volume-discount--free-shipping-policy). The cart estimates, while the server calculates and persists pricing and reserves stock in the same transaction. Client-supplied prices and totals cannot override the persisted values.
+
+F-04 (FR-06/07, BR-02/04, AC-ORD-04/05 and AC-SEC-01) and F-05 (FR-08, BR-05/06, AC-OP-01/03 and AC-SEC-02) return the stored breakdown for new orders and preserve historical prices and totals. For legacy orders, subtotal equals stored total, with zero discount and shipping. Keep the existing ownership and role restrictions and atomic inventory restoration.

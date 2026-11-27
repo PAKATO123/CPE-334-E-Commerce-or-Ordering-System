@@ -177,6 +177,7 @@ describe("Feature 4: Customer Order History & Receipt Details (F-04)", () => {
       expect(screen.getByTestId("order-receipt-card")).toBeInTheDocument();
       expect(screen.getByTestId("order-receipt-number")).toHaveTextContent("ORD-20261102-0001");
       expect(screen.getByTestId("order-receipt-customer")).toHaveTextContent("Alice Customer");
+      expect(screen.queryByTestId("order-receipt-original-total")).not.toBeInTheDocument();
       expect(screen.getByTestId("order-receipt-grand-total")).toHaveTextContent("$1,057.00");
     });
 
@@ -188,6 +189,51 @@ describe("Feature 4: Customer Order History & Receipt Details (F-04)", () => {
     expect(screen.getByTestId("item-price-KB-MECH-RGB")).toHaveTextContent("$79.00");
     expect(screen.getByTestId("item-qty-KB-MECH-RGB")).toHaveTextContent("2");
     expect(screen.getByTestId("item-subtotal-KB-MECH-RGB")).toHaveTextContent("$158.00");
+  });
+
+  it("renders itemized receipt with volume discount savings and shipping fee breakdown (CR-LAB7-01)", async () => {
+    const discountedOrder: OrderData = {
+      id: 25,
+      orderNumber: "ORD-20261127-0099",
+      customerId: 1,
+      customerName: "Alice Customer",
+      customerEmail: "customer1@example.com",
+      status: "PENDING",
+      subtotal: "1000.00",
+      discountAmount: "100.00",
+      shippingFee: "0.00",
+      totalAmount: "900.00",
+      createdAt: "2026-11-27T10:00:00.000Z",
+      items: [
+        {
+          id: 201,
+          productId: 1,
+          productName: "Flagship Pro Smartphone 256GB",
+          sku: "PHON-PRO-256",
+          unitPrice: "1000.00",
+          quantity: 1,
+          subtotal: "1000.00",
+        },
+      ],
+    };
+
+    vi.mocked(api.getOrderByIdApi).mockResolvedValueOnce({ data: discountedOrder });
+
+    render(
+      <MemoryRouter initialEntries={["/orders/25"]}>
+        <Routes>
+          <Route path="/orders/:id" element={<OrderDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("order-receipt-card")).toBeInTheDocument();
+      expect(screen.getByTestId("order-receipt-subtotal")).toHaveTextContent("$1,000.00");
+      expect(screen.getByTestId("order-receipt-discount")).toHaveTextContent("-$100.00");
+      expect(screen.getByTestId("order-receipt-shipping")).toHaveTextContent("FREE");
+      expect(screen.getByTestId("order-receipt-grand-total")).toHaveTextContent("$900.00");
+    });
   });
 
   it("renders permission denied / access restricted card when customer enters another customer's order ID", async () => {

@@ -167,7 +167,14 @@ export const OperatorOrdersPage: React.FC = () => {
                 <h2 id={`order-title-${order.id}`}>{order.orderNumber}</h2>
                 <span className={`tt-operator-status tt-operator-status-${order.status.toLowerCase()}`}>{order.status}</span>
               </div>
-              <strong className="tt-operator-total">{formatUSD(order.totalAmount)}</strong>
+              <div style={{ textAlign: "right" }}>
+                <strong className="tt-operator-total">{formatUSD(order.totalAmount)}</strong>
+                {order.discountAmount && Number(order.discountAmount) > 0 && (
+                  <span style={{ fontSize: "11px", color: "var(--color-primary-green, #006B3C)", display: "block" }}>
+                    (Save -{formatUSD(order.discountAmount)})
+                  </span>
+                )}
+              </div>
             </div>
             <dl className="tt-operator-meta">
               <div><dt>Customer</dt><dd><span>{order.customerName || `Customer ${order.customerId}`}</span><br /><span>{order.customerEmail}</span></dd></div>

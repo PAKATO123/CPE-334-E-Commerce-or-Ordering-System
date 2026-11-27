@@ -1,3 +1,4 @@
+import { serializeOrderPricing } from "../utils/pricingEngine.js";
 import type { PrismaClient } from "@prisma/client";
 
 const ORDER_STATUSES = ["PENDING", "ACCEPTED", "PACKED", "SHIPPED", "REJECTED", "CANCELLED"] as const;
@@ -202,6 +203,10 @@ export async function listOperatorOrders(
       refundedAt: true,
       cancelledAt: true,
       cancellationReason: true,
+      usesLab7Pricing: true,
+      subtotal: true,
+      discountAmount: true,
+      shippingFee: true,
       totalAmount: true,
       createdAt: true,
       updatedAt: true,
@@ -233,7 +238,7 @@ export async function listOperatorOrders(
     refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
     cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
     cancellationReason: order.cancellationReason || null,
-    totalAmount: order.totalAmount.toFixed(2),
+    ...serializeOrderPricing(order),
     itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
     lineItemCount: order.items.length,
     createdAt: order.createdAt.toISOString(),

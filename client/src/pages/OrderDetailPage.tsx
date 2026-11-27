@@ -103,7 +103,7 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
           : selectedPaymentMethod === "SIMULATED_MOCK"
           ? "Mock"
           : "Credit Card";
-      setPaySuccess(`Payment of ${formatUSD(order.totalAmount)} received via ${methodName}.`);
+      setPaySuccess(`Payment of ${formatUSD(grandTotalVal)} received via ${methodName}.`);
     } catch (err: any) {
       setPayError(err.message || "Failed to process payment.");
     } finally {
@@ -372,6 +372,15 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
     minute: "2-digit",
   });
 
+  // Robust pricing calculations for receipt view (CR-LAB7-01 / BR-01)
+  const grandTotalVal = Number(order.totalAmount);
+  const rawSubtotal = Number(order.subtotal ?? order.totalAmount);
+  const discountVal = Number(order.discountAmount ?? 0);
+  const shippingVal = Number(order.shippingFee ?? 0);
+  const discountRate = discountVal > 0 && rawSubtotal > 0
+    ? Math.round(discountVal / rawSubtotal * 100) / 100
+    : 0;
+
   return (
     <div className="receipt-page-container" style={{ maxWidth: "840px", margin: "0 auto", padding: "28px 20px" }}>
       {/* Top Navigation Breadcrumb */}
@@ -637,6 +646,50 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
           </div>
         </div>
 
+        {/* Volume Discount Banner */}
+        {discountVal > 0 && (
+          <div
+            data-testid="order-savings-banner"
+            style={{
+              backgroundColor: "#F0FFF4",
+              border: "1px solid #C6F6D5",
+              borderRadius: "8px",
+              padding: "14px 18px",
+              marginBottom: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              color: "#22543D",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "24px" }}>🎉</span>
+              <div>
+                <strong style={{ fontSize: "15px", display: "block", color: "#22543D" }}>
+                  Tiered Volume Discount Applied ({discountRate * 100}% off)
+                </strong>
+                <span style={{ fontSize: "13px", color: "#2F855A" }}>
+                  You saved {formatUSD(discountVal)} on this order with complimentary free shipping!
+                </span>
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: "13px",
+                fontWeight: 700,
+                backgroundColor: "#006B3C",
+                color: "#FFFFFF",
+                padding: "6px 12px",
+                borderRadius: "16px",
+              }}
+            >
+              Saved -{formatUSD(discountVal)}
+            </span>
+          </div>
+        )}
+
         {/* Itemized Table */}
         <div style={{ overflowX: "auto", marginBottom: "28px" }}>
           <table
@@ -703,9 +756,9 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
                   </td>
                   <td
                     data-testid={`item-subtotal-${item.sku}`}
-                    style={{ padding: "14px 8px", textAlign: "right", fontSize: "14px", fontWeight: 700, color: "var(--color-primary-green, #006B3C)" }}
+                    style={{ padding: "14px 8px", textAlign: "right", fontSize: "14px", fontWeight: 600, color: "var(--color-text-main, #1A2E22)" }}
                   >
-                    {formatUSD(item.subtotal)}
+                    <span>{formatUSD(item.subtotal)}</span>
                   </td>
                 </tr>
               ))}
@@ -715,31 +768,61 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
 
         {/* Totals Calculation Summary */}
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "28px" }}>
-          <div style={{ width: "100%", maxWidth: "320px" }}>
+          <div style={{ width: "100%", maxWidth: "340px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "14px", color: "var(--color-text-muted, #718096)" }}>
               <span>Items Subtotal:</span>
-              <span>{formatUSD(order.totalAmount)}</span>
+              <span data-testid="order-receipt-subtotal">{formatUSD(rawSubtotal)}</span>
             </div>
+            {discountVal > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "14px", color: "var(--color-primary-green, #006B3C)", fontWeight: 600 }}>
+                <span>Volume Discount ({discountRate * 100}% off):</span>
+                <span data-testid="order-receipt-discount">-{formatUSD(discountVal)}</span>
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: "14px", color: "var(--color-text-muted, #718096)" }}>
               <span>Standard Electronics Delivery:</span>
-              <span style={{ color: "var(--color-secondary-green, #0B7A46)", fontWeight: 600 }}>FREE</span>
+              <span data-testid="order-receipt-shipping" style={{ color: shippingVal > 0 ? "var(--color-text-main, #1A2E22)" : "var(--color-secondary-green, #0B7A46)", fontWeight: 600 }}>
+                {shippingVal > 0 ? formatUSD(shippingVal) : "FREE"}
+              </span>
             </div>
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
+                alignItems: "baseline",
                 padding: "12px 0 6px 0",
                 borderTop: "2px solid var(--color-border, #E2E8F0)",
                 marginTop: "6px",
               }}
             >
               <span style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-text-main, #1A2E22)" }}>Grand Total:</span>
-              <span
-                data-testid="order-receipt-grand-total"
-                style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-primary-green, #006B3C)" }}
-              >
-                {formatUSD(order.totalAmount)}
-              </span>
+              <div style={{ textAlign: "right" }}>
+                {discountVal > 0 && (
+                  <span
+                    data-testid="order-receipt-original-total"
+                    style={{
+                      fontSize: "15px",
+                      color: "#A0AEC0",
+                      textDecoration: "line-through",
+                      marginRight: "8px",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {formatUSD(rawSubtotal + shippingVal)}
+                  </span>
+                )}
+                <span
+                  data-testid="order-receipt-grand-total"
+                  style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-primary-green, #006B3C)" }}
+                >
+                  {formatUSD(grandTotalVal)}
+                </span>
+                {discountVal > 0 && (
+                  <div style={{ fontSize: "12px", color: "var(--color-primary-green, #006B3C)", fontWeight: 700, marginTop: "2px" }}>
+                    Total Savings: -{formatUSD(discountVal)}
+                  </div>
+                )}
+              </div>
             </div>
             <p style={{ fontSize: "11px", color: "var(--color-text-muted, #718096)", margin: "8px 0 0 0", lineHeight: 1.4 }}>
               * Historical purchase-time unit prices are locked authoritatively in the system.
@@ -1046,7 +1129,39 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
               Pay Order {order.orderNumber}
             </h2>
             <p style={{ fontSize: "14px", color: "var(--color-text-muted, #718096)", marginBottom: "16px" }}>
-              Total Amount Due: <strong style={{ color: "var(--color-primary-green, #006B3C)" }}>{formatUSD(order.totalAmount)}</strong>
+              Total Amount Due:{" "}
+              {discountVal > 0 && (
+                <span
+                  data-testid="pay-modal-original-total"
+                  style={{
+                    textDecoration: "line-through",
+                    color: "#A0AEC0",
+                    fontSize: "14px",
+                    marginRight: "6px",
+                    fontWeight: 500,
+                  }}
+                >
+                  {formatUSD(rawSubtotal + shippingVal)}
+                </span>
+              )}
+              <strong
+                data-testid="pay-modal-amount-due"
+                style={{ color: "var(--color-primary-green, #006B3C)", fontSize: "16px" }}
+              >
+                {formatUSD(grandTotalVal)}
+              </strong>
+              {discountVal > 0 && (
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: "var(--color-primary-green, #006B3C)",
+                    marginLeft: "8px",
+                    fontWeight: 600,
+                  }}
+                >
+                  (Saved {formatUSD(discountVal)})
+                </span>
+              )}
             </p>
 
             {payError && (

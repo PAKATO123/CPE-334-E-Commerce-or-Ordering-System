@@ -94,9 +94,23 @@ Consumer electronics retailers frequently face challenges managing fulfillment o
 
 ## 4. Business Rules (BR)
 
-- **BR-01 (Authoritative Server-Side Price Calculation)**:
-  - All line item subtotals (`unitPrice * quantity`) and order grand totals (`SUM(subtotals)`) must be computed authoritatively by the server using active catalog database records.
-  - Client-submitted totals, subtotals, or price overrides must be ignored or rejected with `400 BAD_REQUEST`.
+- **BR-01 (Authoritative Server-Side Price Calculation & Tiered Incentives)**:
+  - All line item subtotals (`unitPrice * quantity`), merchandise subtotal (`SUM(subtotals)`), volume discounts, and shipping fees must be computed authoritatively by the server inside the database transaction.
+  - **Volume Discount Tiers**:
+    - Items Subtotal $\ge \$1,000.00 \implies 10\%$ volume discount on merchandise subtotal.
+    - Items Subtotal $\ge \$500.00$ and $< \$1,000.00 \implies 5\%$ volume discount on merchandise subtotal.
+    - Items Subtotal $< \$500.00 \implies 0\%$ volume discount.
+  - **Shipping Fee & Free Shipping Threshold**:
+    - Net merchandise value = $\text{subtotal} - \text{discountAmount}$.
+    - If net merchandise value $\ge \$200.00 \implies \text{shippingFee} = \$0.00$ (Free Shipping).
+    - If net merchandise value $< \$200.00 \implies \text{shippingFee} = \$15.00$ (Flat Delivery Fee).
+  - **Grand Total Calculation**:
+    - $\text{totalAmount} = \text{round}(\text{subtotal} - \text{discountAmount} + \text{shippingFee}, 2)$.
+  - Client-submitted totals, subtotals, discount overrides, or shipping fee overrides must be ignored or rejected. The server calculation is 100% authoritative.
+  - The `Order` entity permanently records `subtotal`, `discountAmount`, `shippingFee`, and `totalAmount` for new orders. At $205.00 both discount and shipping are zero. Discounted orders always ship free because the minimum discounted net is $475.00.
+  - Orders created before the Lab 7 pricing change retain the original stored `totalAmount`. Their effective subtotal equals that stored total, and discount and shipping are both $0.00. Never apply current pricing retrospectively.
+  - New orders use the Lab 7 rules at checkout and retain the resulting persisted breakdown. History, receipts, operator views, payment responses and cancellation use the authoritative persisted total. Catalog price changes do not affect stored line snapshots.
+  - Preserve ownership checks, stock reservation and restoration, and atomic checkout and terminal transitions. A zero pricing field alone is not a reliable version marker. Review legacy identification or backfill before implementation.
 - **BR-02 (Historic Price Preservation)**:
   - At the moment an order is created, the active unit price of each catalog item must be copied into the `OrderItem` record.
   - Subsequent updates to catalog product prices shall have zero effect on historic order items or past order totals.

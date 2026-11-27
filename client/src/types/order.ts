@@ -21,6 +21,9 @@ export interface OrderData {
   cancelledAt?: string | null;
   cancellationReason?: string | null;
   refundedAt?: string | null;
+  subtotal?: string;
+  discountAmount?: string;
+  shippingFee?: string;
   totalAmount: string;
   itemCount?: number;
   lineItemCount?: number;

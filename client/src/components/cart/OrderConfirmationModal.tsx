@@ -13,6 +13,15 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
 
   if (!order) return null;
 
+  // Robust pricing calculations for confirmation modal (CR-LAB7-01 / BR-01)
+  const grandTotalVal = Number(order.totalAmount);
+  const rawSubtotal = Number(order.subtotal ?? order.totalAmount);
+  const discountVal = Number(order.discountAmount ?? 0);
+  const shippingVal = Number(order.shippingFee ?? 0);
+  const discountRate = discountVal > 0 && rawSubtotal > 0
+    ? Math.round(discountVal / rawSubtotal * 100) / 100
+    : 0;
+
   return (
     <div
       style={{
@@ -141,24 +150,63 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({ 
           </table>
         </div>
 
+        {/* Cost Summary Breakdown */}
+        <div style={{ borderTop: "1px dashed #E2E8F0", paddingTop: "10px", marginBottom: "16px", fontSize: "13px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", color: "#4A5568" }}>
+            <span>Items Subtotal:</span>
+            <span>{formatUSD(rawSubtotal)}</span>
+          </div>
+          {discountVal > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", color: "#006B3C", fontWeight: 600 }}>
+              <span>Volume Discount ({discountRate * 100}% off):</span>
+              <span>-{formatUSD(discountVal)}</span>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", color: "#4A5568" }}>
+            <span>Delivery:</span>
+            <span>{shippingVal > 0 ? formatUSD(shippingVal) : "FREE"}</span>
+          </div>
+        </div>
+
         {/* Grand Total */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: "baseline",
             paddingTop: "12px",
             borderTop: "2px solid #E2E8F0",
             marginBottom: "24px",
           }}
         >
           <span style={{ fontSize: "15px", fontWeight: 600, color: "#2D3748" }}>Grand Total:</span>
-          <span
-            data-testid="confirmed-total-amount"
-            style={{ fontSize: "20px", fontWeight: 700, color: "#006B3C" }}
-          >
-            {formatUSD(order.totalAmount)}
-          </span>
+          <div style={{ textAlign: "right" }}>
+            {discountVal > 0 && (
+              <span
+                data-testid="confirmed-original-total"
+                style={{
+                  fontSize: "14px",
+                  color: "#A0AEC0",
+                  textDecoration: "line-through",
+                  marginRight: "8px",
+                  fontWeight: 500,
+                }}
+              >
+                {formatUSD(rawSubtotal + shippingVal)}
+              </span>
+            )}
+            <span
+              data-testid="confirmed-total-amount"
+              style={{ fontSize: "20px", fontWeight: 700, color: "#006B3C" }}
+            >
+              {formatUSD(grandTotalVal)}
+            </span>
+            {discountVal > 0 && (
+              <div style={{ fontSize: "11px", color: "#006B3C", fontWeight: 600, marginTop: "2px" }}>
+                Saved -{formatUSD(discountVal)}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Action Buttons */}

@@ -450,3 +450,7 @@ stateDiagram-v2
 | **F-08** | AC-PAY-05 | Fulfillment: PACKED/SHIPPED | `server/src/services/operatorOrders.ts`| `server/tests/payment-lifecycle.test.ts` | Planned | `Sprint-2-RC` |
 | **F-08** | AC-PAY-06 | Reject invalid transition skips | `server/src/services/operatorOrders.ts`| `server/tests/payment-lifecycle.test.ts` | Planned | `Sprint-2-RC` |
 | **F-08** | AC-PAY-07 | Operator reject triggers refund | `server/src/services/operatorOrders.ts`| `server/tests/payment-lifecycle.test.ts` | Planned | `Sprint-2-RC` |
+
+## CR-LAB7-01 compatibility addendum (Phase 2 review draft)
+
+F-07 (FR-12, AC-ORD-CAN-02/05/06) and F-08 (FR-13, AC-PAY-02/03/04/07) use the original persisted order amount for payment responses and cancellation/refund behavior. Legacy orders retain their stored total with zero retrospective discount or shipping. New orders retain the breakdown persisted at checkout. Do not recalculate on payment or cancellation. Ownership, state guards, refund transitions, and exactly-once inventory restoration stay in force. See [planned Lab 7 STS cases](../sprint-1/sts.md#cr-lab7-01-maintenance-test-plan-phase-2-review-draft).

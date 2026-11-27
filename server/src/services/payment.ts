@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { Role } from "../middleware/auth.js";
+import { serializeOrderPricing } from "../utils/pricingEngine.js";
 
 export class PaymentError extends Error {
   readonly status: number;
@@ -37,6 +38,9 @@ export interface SimulatePaymentResult {
   paymentMethod: string;
   paidAt: string;
   totalAmount: string;
+  subtotal?: string;
+  discountAmount?: string;
+  shippingFee?: string;
   itemCount: number;
   lineItemCount: number;
   createdAt: string;
@@ -140,7 +144,6 @@ export async function simulateOrderPayment(
     });
 
     const totalItemsCount = updated.items.reduce((sum, item) => sum + item.quantity, 0);
-
     return {
       id: updated.id,
       orderNumber: updated.orderNumber,
@@ -151,7 +154,7 @@ export async function simulateOrderPayment(
       paymentStatus: updated.paymentStatus,
       paymentMethod: updated.paymentMethod!,
       paidAt: updated.paidAt!.toISOString(),
-      totalAmount: Number(updated.totalAmount).toFixed(2),
+      ...serializeOrderPricing(updated),
       itemCount: totalItemsCount,
       lineItemCount: updated.items.length,
       createdAt: updated.createdAt.toISOString(),
