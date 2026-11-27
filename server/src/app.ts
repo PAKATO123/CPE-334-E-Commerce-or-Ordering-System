@@ -654,6 +654,21 @@ app.get(
 
       const formatted = orders.map((order) => {
         const totalItemsCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+        const itemsRawSubtotal = order.items.reduce((sum, item) => sum + Number(item.subtotal), 0);
+        let subtotalStr = Number(order.subtotal) > 0 ? Number(order.subtotal).toFixed(2) : "";
+        let discountAmountStr = Number(order.discountAmount || 0).toFixed(2);
+        let shippingFeeStr = Number(order.shippingFee || 0).toFixed(2);
+        let totalAmountStr = Number(order.totalAmount).toFixed(2);
+
+        if ((Number(order.subtotal) === 0 || Number(order.discountAmount) === 0) && itemsRawSubtotal >= 500) {
+          const recalculated = calculateOrderTotals(itemsRawSubtotal);
+          subtotalStr = recalculated.subtotal;
+          discountAmountStr = recalculated.discountAmount;
+          shippingFeeStr = recalculated.shippingFee;
+          totalAmountStr = recalculated.totalAmount;
+        } else if (!subtotalStr) {
+          subtotalStr = itemsRawSubtotal > 0 ? itemsRawSubtotal.toFixed(2) : totalAmountStr;
+        }
 
         return {
           id: order.id,
@@ -666,10 +681,10 @@ app.get(
           cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
           cancellationReason: order.cancellationReason || null,
           refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
-          subtotal: Number(order.subtotal) > 0 ? Number(order.subtotal).toFixed(2) : Number(order.totalAmount).toFixed(2),
-          discountAmount: Number(order.discountAmount || 0).toFixed(2),
-          shippingFee: Number(order.shippingFee || 0).toFixed(2),
-          totalAmount: Number(order.totalAmount).toFixed(2),
+          subtotal: subtotalStr,
+          discountAmount: discountAmountStr,
+          shippingFee: shippingFeeStr,
+          totalAmount: totalAmountStr,
           itemCount: totalItemsCount,
           lineItemCount: order.items.length,
           createdAt: order.createdAt.toISOString(),
@@ -741,6 +756,21 @@ app.get(
       }
 
       const totalItemsCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+      const itemsRawSubtotal = order.items.reduce((sum, item) => sum + Number(item.subtotal), 0);
+      let subtotalStr = Number(order.subtotal) > 0 ? Number(order.subtotal).toFixed(2) : "";
+      let discountAmountStr = Number(order.discountAmount || 0).toFixed(2);
+      let shippingFeeStr = Number(order.shippingFee || 0).toFixed(2);
+      let totalAmountStr = Number(order.totalAmount).toFixed(2);
+
+      if ((Number(order.subtotal) === 0 || Number(order.discountAmount) === 0) && itemsRawSubtotal >= 500) {
+        const recalculated = calculateOrderTotals(itemsRawSubtotal);
+        subtotalStr = recalculated.subtotal;
+        discountAmountStr = recalculated.discountAmount;
+        shippingFeeStr = recalculated.shippingFee;
+        totalAmountStr = recalculated.totalAmount;
+      } else if (!subtotalStr) {
+        subtotalStr = itemsRawSubtotal > 0 ? itemsRawSubtotal.toFixed(2) : totalAmountStr;
+      }
 
       return res.status(200).json({
         data: {
@@ -756,10 +786,10 @@ app.get(
           cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
           cancellationReason: order.cancellationReason || null,
           refundedAt: order.refundedAt ? order.refundedAt.toISOString() : null,
-          subtotal: Number(order.subtotal) > 0 ? Number(order.subtotal).toFixed(2) : Number(order.totalAmount).toFixed(2),
-          discountAmount: Number(order.discountAmount || 0).toFixed(2),
-          shippingFee: Number(order.shippingFee || 0).toFixed(2),
-          totalAmount: Number(order.totalAmount).toFixed(2),
+          subtotal: subtotalStr,
+          discountAmount: discountAmountStr,
+          shippingFee: shippingFeeStr,
+          totalAmount: totalAmountStr,
           itemCount: totalItemsCount,
           lineItemCount: order.items.length,
           createdAt: order.createdAt.toISOString(),

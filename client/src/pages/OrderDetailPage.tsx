@@ -103,7 +103,7 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
           : selectedPaymentMethod === "SIMULATED_MOCK"
           ? "Mock"
           : "Credit Card";
-      setPaySuccess(`Payment of ${formatUSD(order.totalAmount)} received via ${methodName}.`);
+      setPaySuccess(`Payment of ${formatUSD(grandTotalVal)} received via ${methodName}.`);
     } catch (err: any) {
       setPayError(err.message || "Failed to process payment.");
     } finally {
@@ -769,22 +769,9 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
                   </td>
                   <td
                     data-testid={`item-subtotal-${item.sku}`}
-                    style={{ padding: "14px 8px", textAlign: "right", fontSize: "14px", fontWeight: 700, color: "var(--color-primary-green, #006B3C)" }}
+                    style={{ padding: "14px 8px", textAlign: "right", fontSize: "14px", fontWeight: 600, color: "var(--color-text-main, #1A2E22)" }}
                   >
-                    {discountRate > 0 && (
-                      <span
-                        style={{
-                          textDecoration: "line-through",
-                          color: "#A0AEC0",
-                          fontSize: "12px",
-                          marginRight: "6px",
-                          fontWeight: 400,
-                        }}
-                      >
-                        {formatUSD(item.subtotal)}
-                      </span>
-                    )}
-                    <span>{formatUSD(parseFloat(item.subtotal) * (1 - discountRate))}</span>
+                    <span>{formatUSD(item.subtotal)}</span>
                   </td>
                 </tr>
               ))}
@@ -1155,7 +1142,39 @@ export const OrderDetailPage: React.FC<{ operatorView?: boolean }> = ({ operator
               Pay Order {order.orderNumber}
             </h2>
             <p style={{ fontSize: "14px", color: "var(--color-text-muted, #718096)", marginBottom: "16px" }}>
-              Total Amount Due: <strong style={{ color: "var(--color-primary-green, #006B3C)" }}>{formatUSD(order.totalAmount)}</strong>
+              Total Amount Due:{" "}
+              {discountVal > 0 && (
+                <span
+                  data-testid="pay-modal-original-total"
+                  style={{
+                    textDecoration: "line-through",
+                    color: "#A0AEC0",
+                    fontSize: "14px",
+                    marginRight: "6px",
+                    fontWeight: 500,
+                  }}
+                >
+                  {formatUSD(rawSubtotal + shippingVal)}
+                </span>
+              )}
+              <strong
+                data-testid="pay-modal-amount-due"
+                style={{ color: "var(--color-primary-green, #006B3C)", fontSize: "16px" }}
+              >
+                {formatUSD(grandTotalVal)}
+              </strong>
+              {discountVal > 0 && (
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: "var(--color-primary-green, #006B3C)",
+                    marginLeft: "8px",
+                    fontWeight: 600,
+                  }}
+                >
+                  (Saved {formatUSD(discountVal)})
+                </span>
+              )}
             </p>
 
             {payError && (
