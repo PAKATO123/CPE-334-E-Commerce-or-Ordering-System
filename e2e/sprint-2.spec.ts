@@ -50,6 +50,14 @@ async function placeOrder(page: Page, sku: string) {
   return orderNumber;
 }
 
+async function expectCheckoutAccessoryPricing(page: Page, sku: string) {
+  await expect(page.getByTestId(`item-price-${sku}`)).toHaveText("$24.50");
+  await expect(page.getByTestId("order-receipt-subtotal")).toHaveText("$24.50");
+  await expect(page.getByTestId("order-receipt-discount")).toHaveCount(0);
+  await expect(page.getByTestId("order-receipt-shipping")).toHaveText("$15.00");
+  await expect(page.getByTestId("order-receipt-grand-total")).toHaveText("$39.50");
+}
+
 test("Sprint 1 checkout, history and receipt survive operator acceptance", async ({ page, browser, baseURL }) => {
   const staff = await browser.newPage({ baseURL });
   try {
@@ -58,7 +66,7 @@ test("Sprint 1 checkout, history and receipt survive operator acceptance", async
     await signIn(page, customer);
     const order = await placeOrder(page, product.sku);
     const receipt = page.url();
-    await expect(page.getByTestId("order-receipt-grand-total")).toContainText("24.50");
+    await expectCheckoutAccessoryPricing(page, product.sku);
     await page.getByRole("link", { name: "My Orders" }).click();
     await expect(page.getByText(order, { exact: true })).toBeVisible();
     await staff.goto("/operator/orders");
@@ -69,7 +77,7 @@ test("Sprint 1 checkout, history and receipt survive operator acceptance", async
     expect((await accepted).status()).toBe(200);
     await page.goto(receipt);
     await expect(page.getByTestId("order-receipt-status")).toContainText("Accepted");
-    await expect(page.getByTestId("order-receipt-grand-total")).toContainText("24.50");
+    await expectCheckoutAccessoryPricing(page, product.sku);
     await recordScreenshot(page, "accepted-customer-receipt");
   } finally {
     await staff.close();
