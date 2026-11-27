@@ -97,10 +97,12 @@ describe("Feature 3: Cart Assembly & Order Placement (F-03)", () => {
     // Open drawer
     fireEvent.click(screen.getByTestId("open-cart-btn"));
 
-    // Drawer should show both items and grand total: 899 + 158 = $1,057.00
+    // Drawer should show both items, crossed out original subtotal ($1,057.00), and 10% discounted total ($951.30)
     expect(screen.getByTestId("cart-item-PHON-PRO-256")).toBeInTheDocument();
     expect(screen.getByTestId("cart-item-KB-MECH-RGB")).toBeInTheDocument();
-    expect(screen.getByTestId("cart-grand-total")).toHaveTextContent("$1,057.00");
+    expect(screen.getByTestId("cart-original-total")).toHaveTextContent("$1,057.00");
+    expect(screen.getByTestId("cart-grand-total")).toHaveTextContent("$951.30");
+    expect(screen.getByTestId("cart-discount-amount")).toHaveTextContent("-$105.70");
 
     // Drawer footer disclaimer check: "Final total is calculated authoritatively" removed; inventory reservation notice kept
     expect(screen.getByText(/\* Inventory is reserved immediately upon placement\./i)).toBeInTheDocument();
@@ -133,7 +135,8 @@ describe("Feature 3: Cart Assembly & Order Placement (F-03)", () => {
     fireEvent.click(incBtn);
     fireEvent.click(incBtn);
     expect(count).toHaveTextContent("3");
-    expect(screen.getByTestId("cart-grand-total")).toHaveTextContent("$2,697.00");
+    expect(screen.getByTestId("cart-original-total")).toHaveTextContent("$2,697.00");
+    expect(screen.getByTestId("cart-grand-total")).toHaveTextContent("$2,427.30");
   });
 
   it("submits order payload and triggers confirmation modal upon success", async () => {
@@ -215,7 +218,8 @@ describe("Feature 3: Cart Assembly & Order Placement (F-03)", () => {
       expect(screen.getByTestId("order-confirmation-modal")).toBeInTheDocument();
       expect(screen.getByTestId("confirmed-order-number")).toHaveTextContent("ORD-20261102-0001");
       expect(screen.getByTestId("order-status-badge")).toHaveTextContent("PENDING");
-      expect(screen.getByTestId("confirmed-total-amount")).toHaveTextContent("$1,057.00");
+      expect(screen.getByTestId("confirmed-original-total")).toHaveTextContent("$1,057.00");
+      expect(screen.getByTestId("confirmed-total-amount")).toHaveTextContent("$951.30");
     });
   });
 

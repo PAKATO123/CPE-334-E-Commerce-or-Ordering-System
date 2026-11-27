@@ -330,12 +330,32 @@ export const OrderHistoryPage: React.FC = () => {
                     <div style={{ fontSize: "11px", color: "#718096", textTransform: "uppercase" }}>
                       Authoritative Total
                     </div>
-                    <span
-                      data-testid={`order-total-${order.orderNumber}`}
-                      style={{ fontSize: "20px", fontWeight: 700, color: "#006B3C" }}
-                    >
-                      {formatUSD(order.totalAmount)}
-                    </span>
+                    <div>
+                      {order.discountAmount && Number(order.discountAmount) > 0 && (
+                        <span
+                          style={{
+                            fontSize: "14px",
+                            color: "#A0AEC0",
+                            textDecoration: "line-through",
+                            marginRight: "6px",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {formatUSD(Number(order.subtotal || order.totalAmount) + Number(order.shippingFee || 0))}
+                        </span>
+                      )}
+                      <span
+                        data-testid={`order-total-${order.orderNumber}`}
+                        style={{ fontSize: "20px", fontWeight: 700, color: "#006B3C" }}
+                      >
+                        {formatUSD(order.totalAmount)}
+                      </span>
+                      {order.discountAmount && Number(order.discountAmount) > 0 && (
+                        <div style={{ fontSize: "11px", color: "#006B3C", fontWeight: 600 }}>
+                          Save -{formatUSD(order.discountAmount)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

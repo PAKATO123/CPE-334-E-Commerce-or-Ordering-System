@@ -177,7 +177,8 @@ describe("Feature 4: Customer Order History & Receipt Details (F-04)", () => {
       expect(screen.getByTestId("order-receipt-card")).toBeInTheDocument();
       expect(screen.getByTestId("order-receipt-number")).toHaveTextContent("ORD-20261102-0001");
       expect(screen.getByTestId("order-receipt-customer")).toHaveTextContent("Alice Customer");
-      expect(screen.getByTestId("order-receipt-grand-total")).toHaveTextContent("$1,057.00");
+      expect(screen.getByTestId("order-receipt-original-total")).toHaveTextContent("$1,057.00");
+      expect(screen.getByTestId("order-receipt-grand-total")).toHaveTextContent("$951.30");
     });
 
     // Verify historical preserved prices in table

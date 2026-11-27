@@ -24,6 +24,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderSuccess }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [failedProductIds, setFailedProductIds] = useState<number[]>([]);
 
+  // Authoritative Pricing Engine calculations for Cart (CR-LAB7-01 / BR-01)
+  const subtotal = totalAmount;
+  let discountRate = 0;
+  if (subtotal >= 1000) {
+    discountRate = 0.10;
+  } else if (subtotal >= 500) {
+    discountRate = 0.05;
+  }
+  const discountAmount = Math.round(subtotal * discountRate * 100) / 100;
+  const netMerchandise = subtotal - discountAmount;
+  const shippingFee = subtotal > 0 ? (netMerchandise >= 200 ? 0 : 15.00) : 0;
+  const estimatedFinalTotal = subtotal > 0 ? Math.round((netMerchandise + shippingFee) * 100) / 100 : 0;
+
   if (!isCartOpen) return null;
 
   const handleRemoveItem = (productId: number) => {
@@ -373,7 +386,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderSuccess }) => {
                           {formatUSD(product.price)} each
                         </div>
                         <div style={{ fontWeight: 700, fontSize: "15px", color: isFailedItem ? "#C53030" : "#006B3C" }}>
-                          {formatUSD(itemSubtotal)}
+                          {discountRate > 0 && (
+                            <span style={{ textDecoration: "line-through", color: "#A0AEC0", fontSize: "12px", marginRight: "6px", fontWeight: 400 }}>
+                              {formatUSD(itemSubtotal)}
+                            </span>
+                          )}
+                          <span>
+                            {formatUSD(itemSubtotal * (1 - discountRate))}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -397,38 +417,80 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderSuccess }) => {
             <div
               data-testid="cart-incentive-banner"
               style={{
-                backgroundColor: "#F0FFF4",
-                border: "1px solid #C6F6D5",
+                backgroundColor: discountAmount > 0 ? "#F0FFF4" : "#F7FAFC",
+                border: discountAmount > 0 ? "1px solid #C6F6D5" : "1px solid #E2E8F0",
                 borderRadius: "6px",
                 padding: "8px 12px",
                 marginBottom: "12px",
                 fontSize: "12px",
-                color: "#22543D",
+                color: discountAmount > 0 ? "#22543D" : "#4A5568",
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
               }}
             >
-              <span>{totalAmount >= 1000 ? "✨" : totalAmount >= 500 ? "🔥" : totalAmount >= 200 ? "🎉" : "🚚"}</span>
-              <span>
-                {totalAmount >= 1000
-                  ? "10% volume discount & Free Shipping applied at checkout!"
-                  : totalAmount >= 500
-                  ? `5% volume discount applied! Add ${formatUSD(1000 - totalAmount)} for 10% off.`
-                  : totalAmount >= 200
-                  ? `Free Shipping applied! Add ${formatUSD(500 - totalAmount)} for 5% volume discount.`
-                  : `Add ${formatUSD(200 - totalAmount)} for Free Shipping (Standard: $15.00).`}
+              <span>{subtotal >= 1000 ? "✨" : subtotal >= 500 ? "🔥" : subtotal >= 200 ? "🎉" : "🚚"}</span>
+              <span style={{ fontWeight: 500 }}>
+                {subtotal >= 1000
+                  ? "10% volume discount & Free Shipping qualified!"
+                  : subtotal >= 500
+                  ? `5% volume discount applied! Add ${formatUSD(1000 - subtotal)} more for 10% off.`
+                  : subtotal >= 200
+                  ? `Free Shipping qualified! Add ${formatUSD(500 - subtotal)} more for 5% volume discount.`
+                  : `Add ${formatUSD(200 - subtotal)} more for Free Shipping (Standard: $15.00).`}
               </span>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-              <span style={{ fontSize: "14px", color: "#4A5568" }}>Estimated Total:</span>
-              <span
-                data-testid="cart-grand-total"
-                style={{ fontSize: "22px", fontWeight: 700, color: "#006B3C" }}
-              >
-                {formatUSD(totalAmount)}
-              </span>
+            {/* Cost Breakdown */}
+            <div style={{ fontSize: "13px", color: "#4A5568", marginBottom: "12px", borderBottom: "1px dashed #E2E8F0", paddingBottom: "10px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <span>Items Subtotal:</span>
+                <span data-testid="cart-items-subtotal">{formatUSD(subtotal)}</span>
+              </div>
+              {discountAmount > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", color: "#006B3C", fontWeight: 600 }}>
+                  <span>Volume Discount ({discountRate * 100}% off):</span>
+                  <span data-testid="cart-discount-amount">-{formatUSD(discountAmount)}</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Delivery:</span>
+                <span data-testid="cart-shipping-fee" style={{ color: shippingFee === 0 ? "#006B3C" : "#4A5568", fontWeight: shippingFee === 0 ? 600 : 400 }}>
+                  {shippingFee === 0 ? "FREE" : formatUSD(shippingFee)}
+                </span>
+              </div>
+            </div>
+
+            {/* Estimated Total with crossed out old price */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "8px" }}>
+              <span style={{ fontSize: "15px", fontWeight: 700, color: "#1A2E22" }}>Estimated Total:</span>
+              <div style={{ textAlign: "right" }}>
+                {discountAmount > 0 && (
+                  <span
+                    data-testid="cart-original-total"
+                    style={{
+                      fontSize: "15px",
+                      color: "#A0AEC0",
+                      textDecoration: "line-through",
+                      marginRight: "8px",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {formatUSD(subtotal + shippingFee)}
+                  </span>
+                )}
+                <span
+                  data-testid="cart-grand-total"
+                  style={{ fontSize: "22px", fontWeight: 700, color: "#006B3C" }}
+                >
+                  {formatUSD(estimatedFinalTotal)}
+                </span>
+                {discountAmount > 0 && (
+                  <div style={{ fontSize: "11px", color: "#006B3C", fontWeight: 600, marginTop: "2px" }}>
+                    You save {formatUSD(discountAmount)}!
+                  </div>
+                )}
+              </div>
             </div>
 
             <p style={{ fontSize: "11px", color: "#718096", margin: "0 0 14px 0", lineHeight: 1.4 }}>
