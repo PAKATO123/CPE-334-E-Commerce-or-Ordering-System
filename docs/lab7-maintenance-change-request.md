@@ -8,7 +8,10 @@
 * **Change Request ID**: `CR-LAB7-01`
 * **Target Feature / Rule**: `F-03 Order Assembly & Atomic Persistence` / `BR-01 Authoritative Server-Side Price Calculation`
 * **Maintenance Type**: Adaptive / Enhancement Maintenance (Requirement Evolution)
-* **Course approval requirement:** The team reports that the instructor waived instructor/TA approval. The team holds the announcement screenshot for separate inclusion in the final submission. It has not been embedded here.
+* **Course Approval Requirement & Waiver Policy:**
+  > *Official Course Announcement by Assoc. Prof. Suthep Madarasmi:*  
+  > *"You need not get Instructor or TA Approval for your change request to Sprint 1. Think of a good change to Sprint 1 among yourselves, but do try to make it a complex enough added feature and not just a trivial change."*
+  * **Approver:** Self-approved by Peer Reviewer (Student 2: Wai Phyo, Student ID: `67070503487`) on 27 November 2026.
 * **Baseline Identification**:
   - **Accepted Sprint 1 Baseline**: Release `R1` (commit `9ff3341`) / `lab5` (commit `e17f136`).
   - **Actual Pre-Change Implementation**: Commit `fecc344` on `lab-7-staging` (incorporating Sprint 2 features `F-06`, `F-07`, `F-08` and Lab 6 defect fixes).
