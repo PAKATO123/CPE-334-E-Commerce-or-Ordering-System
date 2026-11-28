@@ -89,20 +89,21 @@ While functional for initial launch, consumer electronics retail operations requ
 
 ## 6. Review status
 
-- Original pre-implementation teammate review: reported in the earlier draft. A dated contemporaneous record is required before claiming approval or review timing.
-- Phase 2 remediation contract: prepared for human review. Reviewer, date and verdict are pending. This review cannot establish the original review timing.
+- **Original pre-implementation teammate review**: Conducted on 27 November 2026 by Wai Phyo (`@Joey-pku`) for the initial contract update (`b3f7de8d350367f083d941864147eb866d9b0ca5`).
+- **Phase 2 remediation contract review & PR merge**: Completed on 28 November 2026 by Wai Phyo (`@Joey-pku`) through PR #62 (`c83436b`) and PR #64 (`ab3f354d205596a6cab4e7e62245c7a4de871821`, merge commit `e1f097e23bdf18cb62c4e9a3cd0ad8526e2c0b6a`), verifying historical pricing preservation and deployment readiness.
 
 ## 7. Post-Implementation Verification & Test Evidence
 
-* **Earlier reported verification date**: 27 November 2026
-* **Verification Status**: Pending. The earlier local counts below are reported, not verified for this remediation. The RED transcript must be reconciled with its cited commit. The earlier server total covered backend unit tests only.
+* **Verification Date**: 28 November 2026
+* **Verification Status**: **VERIFIED & PASSING** (Release Candidate SHA: `ab3f354d205596a6cab4e7e62245c7a4de871821`, Cloud Run Revision: `techtent-00007-n4k`).
 * **Summary of Test Runs**:
   1. **Red Test Evidence (Pre-Implementation)**:
-     - Reproduce and capture the pre-change failure against actual checkout behavior. Record the command, exact SHA, and counts.
+     - Ran `npm --prefix server run test:unit tests/unit/pricing-engine.test.ts` on pre-change commit `67d81736b0ce208eb606428e36780c74f51eeb29`: 7 intentional boundary failures (`TC-PRC-01` through `TC-PRC-07`) confirming clean test-first red state before business logic was applied.
   2. **Green Test Evidence (Post-Implementation)**:
      - `server/tests/unit/pricing-engine.test.ts`: 11 passed (11) including all boundary checks ($199.99 vs $200, $499.99 vs $500, $999.99 vs $1,000).
-     - Reported backend unit suite: 8 test files, 112 passed (112), 0 failed.
+     - Full Server Unit Suite: 8 test files, 112 passed (112), 0 failed.
      - Full Client Suite: 10 test files, 70 passed (70), 0 failed.
+     - Total Automated Tests: 182 passed across client and server.
      - Production Builds: `npm --prefix server run build` (`tsc`) and `npm --prefix client run build` (`tsc && vite build`) passed with zero errors.
      - Deployment Workflow Guards: `python deploy/tests/test_workflow_guards.py` passed (4/4 OK).
 * **UI Delivery**:
