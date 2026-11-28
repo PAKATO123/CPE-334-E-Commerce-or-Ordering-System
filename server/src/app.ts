@@ -34,6 +34,12 @@ import {
   PaymentError,
 } from "./services/payment.js";
 import {
+  getSalesSummary,
+  getTurnaroundMetrics,
+  ReportsError,
+} from "./services/reports.js";
+import { loginRateLimiter } from "./middleware/rateLimit.js";
+import {
   requireAuth,
   requireRole,
   enforcePasswordChangeCheck,
@@ -101,9 +107,19 @@ app.get("/api/ready", async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({ status: "ready", db: "connected" });
+    res.status(200).json({
+      status: "ok",
+      ready: true,
+      db: "connected",
+      database: "connected",
+    });
   } catch {
-    res.status(503).json({ status: "not_ready" });
+    res.status(503).json({
+      status: "unavailable",
+      ready: false,
+      db: "disconnected",
+      database: "disconnected",
+    });
   }
 });
 
@@ -112,7 +128,7 @@ app.get("/api/ready", async (_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 
 // POST /api/auth/login
-app.post("/api/auth/login", async (req: Request, res: Response) => {
+app.post("/api/auth/login", loginRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -914,6 +930,65 @@ app.patch(
 );
 
 // ---------------------------------------------------------------------------
+// Operational Reports & Sales Summaries (F-09)
+// ---------------------------------------------------------------------------
+app.get(
+  "/api/reports/sales-summary",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate } = req.query;
+      if (
+        (startDate !== undefined && typeof startDate !== "string") ||
+        (endDate !== undefined && typeof endDate !== "string")
+      ) {
+        throw new ReportsError(400, "INVALID_DATE", "Provide one value per date filter.");
+      }
+      const data = await getSalesSummary(getPrisma(), {
+        startDate: typeof startDate === "string" ? startDate : undefined,
+        endDate: typeof endDate === "string" ? endDate : undefined,
+      });
+      return res.status(200).json({ data });
+    } catch (error) {
+      if (error instanceof ReportsError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Sales summary report error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to generate sales summary report." },
+      });
+    }
+  }
+);
+
+app.get(
+  "/api/reports/turnaround",
+  requireAuth,
+  enforcePasswordChangeCheck,
+  requireRole("OPERATOR", "ADMIN"),
+  async (req: Request, res: Response) => {
+    try {
+      const data = await getTurnaroundMetrics(getPrisma());
+      return res.status(200).json({ data });
+    } catch (error) {
+      if (error instanceof ReportsError) {
+        return res.status(error.status).json({
+          error: { code: error.code, message: error.message },
+        });
+      }
+      console.error("Turnaround report error:", error);
+      return res.status(500).json({
+        error: { code: "INTERNAL_ERROR", message: "Failed to generate turnaround metrics." },
+      });
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
 // Static SPA Serving (Unified Cloud Run Container)
 // ---------------------------------------------------------------------------
 const clientDistCandidates = [
@@ -947,10 +1022,27 @@ app.use((_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error("Unhandled server error:", err);
-  return res.status(500).json({
+
+  const isProduction = process.env.NODE_ENV === "production";
+  const statusCode =
+    Number.isInteger(err.statusCode) && err.statusCode >= 400 && err.statusCode <= 599
+      ? err.statusCode
+      : 500;
+  let code = err.code || "INTERNAL_ERROR";
+  let message = err.message || "An unexpected internal server error occurred.";
+
+  if (isProduction) {
+    const databaseError = typeof code === "string" && /^P\d{4}$/.test(code);
+    code = databaseError ? "DATABASE_ERROR" : statusCode >= 500 ? "INTERNAL_ERROR" : "REQUEST_ERROR";
+    message = statusCode >= 500
+      ? "An unexpected internal server error occurred."
+      : "The request could not be processed.";
+  }
+
+  return res.status(statusCode).json({
     error: {
-      code: "INTERNAL_ERROR",
-      message: err.message || "An unexpected internal server error occurred.",
+      code,
+      message,
     },
   });
 });

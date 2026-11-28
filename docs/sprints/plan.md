@@ -66,3 +66,16 @@ flowchart LR
 | **`F-08/PaymentStateMachine` (Lifecycle & Modals)** | PAKATO (State Machine) | Joey-pku (Modal UI) | 27 Nov 2026 |
 | **`sprint-2-staging` Integration & GCP Deploy** | PAKATO & Joey-pku | Peer Verified | 28 Nov 2026 |
 | **Deliverable 2 Report Compilation** | PAKATO & Joey-pku | Both | 29 Nov 2026 |
+
+---
+
+## 4. Team Responsibilities & Ownership Matrix (Sprint 3)
+
+| Feature / Responsibility | Primary Owner | Reviewer / Secondary Owner | Target Completion Date |
+|---|---|---|---|
+| **`S3-00/Docs` Documentation & Contracts Baseline** | PAKATO | Joey-pku | 23 Nov 2026 |
+| **`F-09/OperationalReports` (API & UI)** | PAKATO (API) | Joey-pku (UI) | 26 Nov 2026 |
+| **`F-10/ProductionHardening` (Rate Limit & Probes)** | Joey-pku (Security) | PAKATO (Testing) | 27 Nov 2026 |
+| **`sprint-3-staging` Integration & GCP Deploy** | PAKATO & Joey-pku | Peer Verified | 28 Nov 2026 |
+| **Deliverable 2 Submission & PDF Compilation** | PAKATO & Joey-pku | Both | 29 Nov 2026 |
+| **Final Delivery Submission, Video & PDF** | PAKATO & Joey-pku | Both | 13 Dec 2026 |

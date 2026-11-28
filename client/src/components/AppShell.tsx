@@ -110,6 +110,22 @@ export const AppShell: React.FC = () => {
                   >
                     Manage Products
                   </NavLink>
+                  <NavLink
+                    to="/operator/reports"
+                    data-testid="nav-reports-link"
+                    className={({ isActive }) => `tt-nav-link ${isActive ? "active" : ""}`}
+                    style={({ isActive }) => ({
+                      textDecoration: "none",
+                      color: "#FFFFFF",
+                      padding: "6px 12px",
+                      borderRadius: "4px",
+                      backgroundColor: isActive ? "rgba(255, 255, 255, 0.25)" : "transparent",
+                      fontWeight: isActive ? 600 : 400,
+                      fontSize: "14px",
+                    })}
+                  >
+                    Reports
+                  </NavLink>
                 </>
               )}
             </nav>
